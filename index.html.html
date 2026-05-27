@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mom's Perisa – Full Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { background: #fff7ed; }
+    .scrollbar-hide::-webkit-scrollbar { display:none; }
+    .scrollbar-hide { -ms-overflow-style:none; scrollbar-width:none; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useContext, createContext } = React;
+
+const AppContext = createContext(null);
+
+const categories = ["All", "Malay", "Chinese", "Indian", "Healthy"];
+
+const momsSeed = [
+  { id: "mom1", name: "Aunty Saras", status: "pending", uploads: { face: null, ic: null, kitchen: null }, rejectionReason: "" },
+  { id: "mom2", name: "Mak Cik Lina", status: "approved", uploads: { face: "ok", ic: "ok", kitchen: "ok" }, rejectionReason: "" },
+  { id: "mom3", name: "Chef Priya", status: "approved", uploads: { face: "ok", ic: "ok", kitchen: "ok" }, rejectionReason: "" }
+];
+
+const ridersSeed = [
+  { id: "rider1", name: "Ahmad", status: "pending", uploads: { face: null, license: null, pod: null }, rejectionReason: "" },
+  { id: "rider2", name: "Ravi", status: "approved", uploads: { face: "ok", license: "ok", pod: null }, rejectionReason: "" }
+];
+
+const initialMeals = [
+  {
+    id: 1,
+    name: "Nasi Lemak Ayam Rendang",
+    cook: "Aunty Saras",
+    cookId: "mom1",
+    price: 12,
+    rating: 4.9,
+    eta: "20 mins",
+    category: "Malay",
+    description: "Fragrant coconut rice with chicken rendang, sambal, peanuts and anchovies.",
+    image: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=800&q=80"
+  },
+  {
+    id: 2,
+    name: "Chicken Curry Set",
+    cook: "Mak Cik Lina",
+    cookId: "mom2",
+    price: 15,
+    rating: 4.8,
+    eta: "25 mins",
+    category: "Malay",
+    description: "Rich chicken curry with rice and simple homemade sides.",
+    image: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=800&q=80"
+  },
+  {
+    id: 3,
+    name: "Vegetarian Bento",
+    cook: "Chef Priya",
+    cookId: "mom3",
+    price: 10,
+    rating: 4.7,
+    eta: "18 mins",
+    category: "Healthy",
+    description: "Healthy vegetarian bento with tofu, vegetables, and brown rice.",
+    image: "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&q=80"
+  }
+];
+
+function createPreview(file) {
+  return URL.createObjectURL(file);
+}
+
+function AppProvider({ children }) {
+  const [route, setRoute] = useState("/");
+  const [toasts, setToasts] = useState([]);
+  const [meals, setMeals] = useState(initialMeals);
+  const [cart, setCart] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [moms, setMoms] = useState(momsSeed);
+  const [riders, setRiders] = useState(ridersSeed);
+  const [activeMomId, setActiveMomId] = useState("mom1");
+  const [activeRiderId, setActiveRiderId] = useState("rider1");
+  const [orderSuccessId, setOrderSuccessId] = useState(null);
+
+  useEffect(() => {
+    if (!toasts.length) return;
+    const t = setTimeout(() => setToasts(prev => prev.slice(1)), 2200);
+    return () => clearTimeout(t);
+  }, [toasts]);
+
+  const toast = (message, type = "success") =>
+    setToasts(prev => [...prev, { id: Date.now() + Math.random(), message, type }]);
+
+  const addToCart = (meal) => {
+    setCart(prev => {
+      const found = prev.find(i => i.id === meal.id);
+      if (found) return prev.map(i => i.id === meal.id ? { ...i, quantity: i.quantity + 1 } : i);
+      return [...prev, { ...meal, quantity: 1 }];
+    });
+    toast("Added to cart");
+  };
+
+  const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id));
+  const updateQty = (id, qty) => setCart(prev => qty <= 0 ? prev.filter(i => i.id !== id) : prev.map(i => i.id === id ? { ...i, quantity: qty } : i));
+  const clearCart = () => setCart([]);
+
+  const placeOrder = (customer) => {
+    const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const deliveryFee = 3;
+    const riderEarning = 5;
+    const order = {
+      id: Date.now(),
+      customer,
+      meals: cart,
+      total: subtotal + deliveryFee,
+      subtotal,
+      deliveryFee,
+      riderEarning,
+      proofEarningApproved: false,
+      proofPhoto: null,
+      status: "cooking",
+      riderStatus: "waiting",
+      assignedRiderId: null,
+      createdAt: new Date().toLocaleString(),
+      eta: "25 mins",
+      momId: cart[0]?.cookId || null,
+      history: ["Order placed"]
+    };
+    setOrders(prev => [order, ...prev]);
+    clearCart();
+    setOrderSuccessId(order.id);
+    setRoute("/order-success");
+    toast("Order placed!");
+  };
+
+  const uploadDoc = (type, id, key, file) => {
+    const preview = createPreview(file);
+    if (type === "mom") {
+      setMoms(prev => prev.map(m => m.id === id ? { ...m, uploads: { ...m.uploads, [key]: preview }, status: "pending", rejectionReason: "" } : m));
+      toast("Mom document uploaded");
+    } else if (type === "rider") {
+      setRiders(prev => prev.map(r => r.id === id ? { ...r, uploads: { ...r.uploads, [key]: preview }, status: "pending", rejectionReason: "" } : r));
+      toast("Rider document uploaded");
+    } else if (type === "pod") {
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, proofPhoto: preview, proofStatus: "submitted", status: "pending approval", history: [...(o.history || []), "Proof photo submitted"] } : o));
+      toast("Proof photo uploaded");
+    }
+  };
+
+  const submitMomReview = (momId) => {
+    setMoms(prev => prev.map(m => m.id === momId ? { ...m, status: "in-review", rejectionReason: "" } : m));
+    toast("Sent to admin review");
+  };
+
+  const submitRiderReview = (riderId) => {
+    setRiders(prev => prev.map(r => r.id === riderId ? { ...r, status: "in-review", rejectionReason: "" } : r));
+    toast("Sent to admin review");
+  };
+
+  const approveMom = (momId) => {
+    setMoms(prev => prev.map(m => m.id === momId ? { ...m, status: "approved", rejectionReason: "" } : m));
+    toast("Mom approved by admin");
+  };
+
+  const rejectMom = (momId) => {
+    setMoms(prev => prev.map(m => m.id === momId ? { ...m, status: "rejected", rejectionReason: "Please reupload clearer mom docs and kitchen photos." } : m));
+    toast("Mom rejected", "error");
+  };
+
+  const approveRider = (riderId) => {
+    setRiders(prev => prev.map(r => r.id === riderId ? { ...r, status: "approved", rejectionReason: "" } : r));
+    toast("Rider approved by admin");
+  };
+
+  const rejectRider = (riderId) => {
+    setRiders(prev => prev.map(r => r.id === riderId ? { ...r, status: "rejected", rejectionReason: "Please reupload clearer rider docs." } : r));
+    toast("Rider rejected", "error");
+  };
+
+  const addMeal = (meal) => {
+    setMeals(prev => [
+      {
+        id: Date.now(),
+        name: meal.name,
+        cook: moms.find(m => m.id === meal.cookId)?.name || "Unknown",
+        cookId: meal.cookId,
+        price: Number(meal.price),
+        rating: 5.0,
+        eta: "25 mins",
+        category: meal.category,
+        description: meal.description,
+        image: meal.photoPreview || "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=800&q=80"
+      },
+      ...prev
+    ]);
+    toast("Menu added successfully");
+  };
+
+  const assignRider = (orderId, riderId) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, assignedRiderId: riderId, status: "accepted", riderStatus: "accepted", history: [...(o.history || []), "Rider confirmed delivery"] } : o));
+    toast("Delivery accepted");
+  };
+
+  const updateOrderStatus = (orderId, status) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status, riderStatus: status, history: [...(o.history || []), status] } : o));
+    toast(`Status updated: ${status}`);
+  };
+
+  const cancelDelivery = (orderId) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, assignedRiderId: null, status: "waiting rider", riderStatus: "waiting", history: [...(o.history || []), "Delivery canceled"] } : o));
+    toast("Delivery canceled");
+  };
+
+  const approveProof = (orderId) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, proofEarningApproved: true, status: "paid", riderStatus: "paid", history: [...(o.history || []), "Proof approved by admin"] } : o));
+    toast("Proof approved. Rider paid RM5");
+  };
+
+  const rejectProof = (orderId) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, proofEarningApproved: false, status: "delivered", riderStatus: "delivered", history: [...(o.history || []), "Proof rejected"] } : o));
+    toast("Proof rejected", "error");
+  };
+
+  return (
+    <AppContext.Provider value={{
+      route, setRoute, toasts, toast,
+      meals, addMeal,
+      cart, addToCart, removeFromCart, updateQty, clearCart,
+      orders, placeOrder, assignRider, updateOrderStatus, cancelDelivery,
+      approveProof, rejectProof,
+      moms, riders, activeMomId, setActiveMomId, activeRiderId, setActiveRiderId,
+      uploadDoc, submitMomReview, submitRiderReview, approveMom, rejectMom, approveRider, rejectRider,
+      orderSuccessId, categories
+    }}>
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+function useApp() {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useApp must be used inside AppProvider");
+  return ctx;
+}
+
+function ToastLayer() {
+  const { toasts } = useApp();
+  return (
+    <div className="fixed top-4 right-4 z-50 space-y-2 w-[calc(100vw-2rem)] max-w-sm">
+      {toasts.map(t => (
+        <div key={t.id} className={`text-white px-4 py-3 rounded-2xl shadow-lg ${t.type === "error" ? "bg-red-500" : t.type === "warn" ? "bg-yellow-500 text-black" : "bg-green-500"}`}>
+          {t.message}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NavTabs() {
+  const { route, setRoute } = useApp();
+  const btn = (path) => route === path ? "bg-orange-500 text-white" : "bg-white shadow text-gray-700";
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide mb-5">
+      <button onClick={() => setRoute("/")} className={`px-4 py-2 rounded-full whitespace-nowrap text-sm ${btn("/")}`}>User App</button>
+      <button onClick={() => setRoute("/mom-dashboard")} className={`px-4 py-2 rounded-full whitespace-nowrap text-sm ${btn("/mom-dashboard")}`}>Mom Dashboard</button>
+      <button onClick={() => setRoute("/rider-dashboard")} className={`px-4 py-2 rounded-full whitespace-nowrap text-sm ${btn("/rider-dashboard")}`}>Rider App</button>
+      <button onClick={() => setRoute("/admin-dashboard")} className={`px-4 py-2 rounded-full whitespace-nowrap text-sm ${btn("/admin-dashboard")}`}>Admin Panel</button>
+    </div>
+  );
+}
+
+function Badge({ text, tone = "yellow" }) {
+  const cls = tone === "green" ? "bg-green-100 text-green-700" : tone === "red" ? "bg-red-100 text-red-700" : tone === "blue" ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-800";
+  return <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${cls}`}>{text}</span>;
+}
+
+function ImageUploadBox({ label, preview, onUpload, status }) {
+  const inputId = label.replace(/\s+/g, "-").toLowerCase();
+  return (
+    <div className="bg-orange-50 rounded-2xl p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="font-semibold">{label}</div>
+          <div className="text-xs text-gray-500">Upload and preview</div>
+        </div>
+        <label htmlFor={inputId} className="px-3 py-2 rounded-xl bg-orange-500 text-white text-sm cursor-pointer">Upload</label>
+      </div>
+      <input id={inputId} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
+      {preview ? <img src={preview} alt={label} className="mt-3 w-full h-40 object-cover rounded-2xl border" /> : <div className="mt-3 h-40 rounded-2xl border-2 border-dashed border-orange-200 flex items-center justify-center text-gray-400 text-sm">No image selected</div>}
+      <div className="mt-2 text-xs font-semibold text-green-700">{status}</div>
+    </div>
+  );
+}
+
+function FloatingCatalog() {
+  const images = [
+    "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=600&q=80",
+    "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=600&q=80",
+    "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=600&q=80",
+    "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=600&q=80"
+  ];
+  return (
+    <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+      <div className="absolute inset-0 bg-gradient-to-b from-orange-50 via-orange-50/70 to-orange-100/80"></div>
+      <div className="absolute top-10 left-0 w-[200%] animate-[marquee_25s_linear_infinite] opacity-20 blur-[1px]">
+        <div className="flex gap-4 w-max">
+          {[...images, ...images].map((src, i) => (
+            <img key={i} src={src} alt="" className="h-32 w-48 object-cover rounded-3xl shadow-xl" />
+          ))}
+        </div>
+      </div>
+      <div className="absolute bottom-10 left-0 w-[200%] animate-[marqueeReverse_35s_linear_infinite] opacity-15 blur-[1px]">
+        <div className="flex gap-4 w-max">
+          {[...images, ...images].map((src, i) => (
+            <img key={i} src={src} alt="" className="h-28 w-40 object-cover rounded-3xl shadow-xl" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UserHome() {
+  const { meals, cart, addToCart, setRoute, categories, orders, orderSuccessId } = useApp();
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("All");
+  const filtered = meals.filter(m => (category === "All" || m.category === category) && (m.name.toLowerCase().includes(search.toLowerCase()) || m.cook.toLowerCase().includes(search.toLowerCase())));
+  const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+  const currentOrder = orders.find(o => o.id === orderSuccessId) || orders[0];
+  const trackingText = !currentOrder ? "No active order yet"
+    : currentOrder.status === "cooking" ? "Mom's cooking"
+    : currentOrder.status === "waiting rider" ? "Waiting rider"
+    : currentOrder.status === "accepted" ? "Rider confirmed delivery"
+    : currentOrder.status === "taken" ? "Rider picked up the order"
+    : currentOrder.status === "ontheway" ? `Rider is on the way • ETA ${currentOrder.eta}`
+    : currentOrder.status === "delivered" ? "Delivered"
+    : currentOrder.status === "pending approval" ? "Waiting admin proof approval"
+    : currentOrder.status === "paid" ? "Proof approved, rider paid"
+    : "Status updated";
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-3xl shadow-lg p-5">
+        <h1 className="text-3xl font-bold text-orange-600">Mom's Perisa</h1>
+        <p className="text-gray-500 mt-1">Homemade food delivered warm ❤️</p>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search meals..." className="w-full mt-4 border rounded-2xl px-4 py-3" />
+      </div>
+      <div className="bg-white rounded-3xl shadow-lg p-5">
+        <h3 className="font-bold text-lg">Order Tracking</h3>
+        <div className="mt-3 bg-orange-50 rounded-2xl p-4">
+          <div className="font-semibold">{trackingText}</div>
+          {currentOrder && <div className="text-sm text-gray-600 mt-1">Order #{currentOrder.id}</div>}
+          {currentOrder && <div className="text-sm text-gray-600">Total: RM{currentOrder.total.toFixed(2)}</div>}
+        </div>
+      </div>
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+        {categories.map(c => (
+          <button key={c} onClick={() => setCategory(c)} className={`px-4 py-2 rounded-full whitespace-nowrap text-sm shadow ${category === c ? "bg-orange-500 text-white" : "bg-white"}`}>{c}</button>
+        ))}
+      </div>
+      <button onClick={() => setRoute("/cart")} className="w-full bg-white shadow rounded-2xl p-4 flex items-center justify-between">
+        <span>Cart</span><span className="font-bold">{cartCount} items</span>
+      </button>
+      <div className="space-y-4">
+        {filtered.map(meal => (
+          <div key={meal.id} className="bg-white rounded-3xl shadow-lg overflow-hidden">
+            <div onClick={() => setRoute(`/meal/${meal.id}`)} className="h-40 cursor-pointer">
+              <img src={meal.image} className="w-full h-full object-cover" alt={meal.name} />
+            </div>
+            <div className="p-5">
+              <div className="flex justify-between gap-4">
+                <div>
+                  <h3 className="font-bold text-lg">{meal.name}</h3>
+                  <p className="text-gray-500 text-sm">by {meal.cook}</p>
+                </div>
+                <span className="font-bold text-orange-600">RM{meal.price}</span>
+              </div>
+              <div className="flex justify-between mt-3 text-sm text-gray-500">
+                <span>⭐ {meal.rating}</span>
+                <span>{meal.eta}</span>
+                <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-full">{meal.category}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                <button onClick={() => addToCart(meal)} className="bg-orange-500 text-white py-3 rounded-2xl font-semibold">Add to Cart</button>
+                <button onClick={() => { addToCart(meal); setRoute("/checkout"); }} className="bg-black text-white py-3 rounded-2xl font-semibold">Buy Now</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MealDetail({ id }) {
+  const { meals, addToCart, setRoute } = useApp();
+  const meal = meals.find(m => m.id === Number(id));
+  if (!meal) return <div className="bg-white rounded-3xl p-6 shadow">Meal not found.</div>;
+  return (
+    <div className="bg-white rounded-3xl shadow-lg overflow-hidden">
+      <div className="h-56"><img src={meal.image} className="w-full h-full object-cover" alt={meal.name} /></div>
+      <div className="p-6">
+        <button onClick={() => setRoute("/")} className="text-gray-600 mb-4">← Back</button>
+        <h1 className="text-2xl font-bold">{meal.name}</h1>
+        <p className="text-gray-500 mt-1">by {meal.cook}</p>
+        <p className="mt-4 text-gray-600">{meal.description}</p>
+        <div className="grid grid-cols-2 gap-3 mt-5">
+          <button onClick={() => addToCart(meal)} className="w-full bg-orange-500 text-white py-3 rounded-2xl font-semibold">Add to Cart</button>
+          <button onClick={() => { addToCart(meal); setRoute("/checkout"); }} className="w-full bg-black text-white py-3 rounded-2xl font-semibold">Buy Now</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CartPage() {
+  const { cart, removeFromCart, updateQty, setRoute } = useApp();
+  const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  return (
+    <div className="space-y-4">
+      <button onClick={() => setRoute("/")} className="text-gray-600">← Back</button>
+      <div className="bg-white rounded-3xl shadow-lg p-5"><h2 className="text-2xl font-bold">Your Cart</h2></div>
+      {cart.length === 0 ? <div className="bg-white rounded-3xl p-6 shadow text-center">Cart is empty.</div> : cart.map(item => (
+        <div key={item.id} className="bg-white rounded-3xl shadow-lg p-5">
+          <div className="flex justify-between gap-4">
+            <div>
+              <h3 className="font-bold">{item.name}</h3>
+              <p className="text-sm text-gray-500">{item.cook}</p>
+              <p className="text-orange-600 font-bold mt-1">RM{item.price}</p>
+            </div>
+            <button onClick={() => removeFromCart(item.id)} className="text-red-500">Remove</button>
+          </div>
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center gap-3 bg-gray-100 rounded-full px-3 py-2">
+              <button onClick={() => updateQty(item.id, item.quantity - 1)}>-</button>
+              <span className="w-6 text-center">{item.quantity}</span>
+              <button onClick={() => updateQty(item.id, item.quantity + 1)}>+</button>
+            </div>
+            <span className="font-bold">RM{(item.price * item.quantity).toFixed(2)}</span>
+          </div>
+        </div>
+      ))}
+      {cart.length > 0 && (
+        <div className="bg-white rounded-3xl shadow-lg p-5">
+          <div className="flex justify-between"><span>Subtotal</span><span>RM{subtotal.toFixed(2)}</span></div>
+          <button onClick={() => setRoute("/checkout")} className="w-full mt-5 bg-orange-500 text-white py-3 rounded-2xl font-semibold">Checkout</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CheckoutPage() {
+  const { cart, placeOrder, setRoute } = useApp();
+  const [name, setName] = useState("Aathi");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("Rawang, Selangor");
+  const [loading, setLoading] = useState(false);
+
+  if (!cart.length) return <div className="bg-white rounded-3xl p-6 shadow">Cart is empty.</div>;
+
+  const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const total = subtotal + 3;
+
+  const submit = (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setTimeout(() => {
+      placeOrder({ name, phone, address });
+      setLoading(false);
+    }, 600);
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4 bg-white rounded-3xl shadow-lg p-6">
+      <button type="button" onClick={() => setRoute("/cart")} className="text-gray-600">← Back</button>
+      <h2 className="text-2xl font-bold">Checkout</h2>
+      <div className="bg-orange-50 rounded-2xl p-4">
+        <div className="flex justify-between text-sm"><span>Subtotal</span><b>RM{subtotal.toFixed(2)}</b></div>
+        <div className="flex justify-between text-sm mt-1"><span>Delivery</span><b>RM3.00</b></div>
+        <div className="flex justify-between mt-2 pt-2 border-t"><span>Total</span><b className="text-orange-600">RM{total.toFixed(2)}</b></div>
+      </div>
+      <input value={name} onChange={(e) => setName(e.target.value)} className="w-full border rounded-2xl px-4 py-3" placeholder="Name" />
+      <input value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full border rounded-2xl px-4 py-3" placeholder="Phone" />
+      <textarea value={address} onChange={(e) => setAddress(e.target.value)} className="w-full border rounded-2xl px-4 py-3" rows="3" placeholder="Address"></textarea>
+      <button type="submit" disabled={loading} className="w-full bg-orange-500 text-white py-3 rounded-2xl font-semibold">{loading ? "Processing..." : `Pay Now RM${total.toFixed(2)}`}</button>
+    </form>
+  );
+}
+
+function OrderSuccessPage() {
+  const { orders, orderSuccessId, setRoute } = useApp();
+  const latest = orders.find(o => o.id === orderSuccessId);
+  return (
+    <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
+      <div className="text-6xl">✅</div>
+      <h2 className="text-2xl font-bold mt-4">Order Placed!</h2>
+      <p className="text-gray-500 mt-2">Your meal is being prepared.</p>
+      {latest && <div className="bg-orange-50 rounded-2xl p-4 mt-4 text-left"><div>Order #{latest.id}</div><div className="text-orange-600 font-bold mt-1">RM{latest.total.toFixed(2)}</div></div>}
+      <button onClick={() => setRoute("/")} className="mt-6 bg-orange-500 text-white px-5 py-3 rounded-2xl font-semibold">Back Home</button>
+    </div>
+  );
+}
+
+function UserTrackingCard() {
+  const { orders, orderSuccessId } = useApp();
+  const currentOrder = orders.find(o => o.id === orderSuccessId) || orders[0];
+  if (!currentOrder) return null;
+  const trackingText =
+    currentOrder.status === "cooking" ? "Mom's cooking" :
+    currentOrder.status === "waiting rider" ? "Waiting rider" :
+    currentOrder.status === "accepted" ? "Rider confirmed delivery" :
+    currentOrder.status === "taken" ? "Rider picked up the order" :
+    currentOrder.status === "ontheway" ? `Rider is on the way • ETA ${currentOrder.eta}` :
+    currentOrder.status === "delivered" ? "Delivered" :
+    currentOrder.status === "pending approval" ? "Waiting admin proof approval" :
+    currentOrder.status === "paid" ? "Proof approved, rider paid" :
+    "Status updated";
+
+  return (
+    <div className="bg-white rounded-3xl shadow-lg p-5">
+      <h3 className="font-bold text-lg">Order Status</h3>
+      <div className="mt-3 bg-orange-50 rounded-2xl p-4">
+        <div className="font-semibold">{trackingText}</div>
+        <div className="text-sm text-gray-600 mt-1">Order #{currentOrder.id}</div>
+        <div className="text-sm text-gray-600">Total: RM{currentOrder.total.toFixed(2)}</div>
+      </div>
+    </div>
+  );
+}
+
+function MomDashboard() {
+  const { moms, activeMomId, setActiveMomId, uploadDoc, submitMomReview, addMeal, orders, updateOrderStatus, toast } = useApp();
+  const mom = moms.find(m => m.id === activeMomId);
+  const [form, setForm] = useState({ name: "", price: "", description: "", category: "Malay", photoPreview: "" });
+  const momOrders = orders.filter(o => o.momId === activeMomId);
+  const earnings = momOrders.reduce((sum, o) => sum + o.total * 0.85, 0);
+  const allDocsDone = !!(mom?.uploads.face && mom?.uploads.ic && mom?.uploads.kitchen);
+  const canPost = mom?.status === "approved";
+
+  const onPhoto = (file) => setForm(v => ({ ...v, photoPreview: createPreview(file) }));
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!canPost || !form.photoPreview) return;
+    addMeal({ ...form, cookId: activeMomId });
+    setForm({ name: "", price: "", description: "", category: "Malay", photoPreview: "" });
+  };
+
+  const submitReview = () => {
+    if (!allDocsDone) return toast("Upload all documents first", "warn");
+    submitMomReview(activeMomId);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-3xl p-6 shadow-lg">
+        <div className="flex justify-between items-center gap-3">
+          <div>
+            <h2 className="text-2xl font-bold text-orange-600">Mom Dashboard</h2>
+            <p className="text-gray-500">Manage your homemade food business</p>
+          </div>
+          <select value={activeMomId} onChange={(e) => setActiveMomId(e.target.value)} className="border rounded-full px-4 py-2">
+            {moms.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        </div>
+        <div className="mt-4 flex items-center gap-2 flex-wrap">
+          <Badge text={mom?.status || "unknown"} tone={mom?.status === "approved" ? "green" : mom?.status === "rejected" ? "red" : mom?.status === "in-review" ? "blue" : "yellow"} />
+          {mom?.status === "rejected" && <span className="text-sm text-red-600">{mom.rejectionReason}</span>}
+          {mom?.status === "in-review" && <span className="text-sm text-blue-600">Waiting for admin approval</span>}
+          {mom?.status === "approved" && <span className="text-sm text-green-600">You are approved</span>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white rounded-3xl p-5 shadow">
+          <div className="text-gray-500 text-sm">Earnings</div>
+          <div className="text-2xl font-bold text-green-600">RM{earnings.toFixed(2)}</div>
+        </div>
+        <div className="bg-white rounded-3xl p-5 shadow">
+          <div className="text-gray-500 text-sm">Orders</div>
+          <div className="text-2xl font-bold text-orange-600">{momOrders.length}</div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl p-6 shadow-lg space-y-3">
+        <h3 className="font-bold text-lg">Verification Uploads</h3>
+        <ImageUploadBox label="Scan Face" preview={mom?.uploads.face} status={mom?.uploads.face ? "Uploaded" : "Waiting"} onUpload={(file) => uploadDoc("mom", activeMomId, "face", file)} />
+        <ImageUploadBox label="Upload IC" preview={mom?.uploads.ic} status={mom?.uploads.ic ? "Uploaded" : "Waiting"} onUpload={(file) => uploadDoc("mom", activeMomId, "ic", file)} />
+        <ImageUploadBox label="Kitchen Picture" preview={mom?.uploads.kitchen} status={mom?.uploads.kitchen ? "Uploaded" : "Waiting"} onUpload={(file) => uploadDoc("mom", activeMomId, "kitchen", file)} />
+        <button type="button" onClick={submitReview} className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold">
+          Submit for Admin Review
+        </button>
+      </div>
+
+      <form onSubmit={submit} className="bg-white rounded-3xl p-6 shadow-lg space-y-3">
+        <h3 className="font-bold text-lg">Add Menu</h3>
+        <ImageUploadBox label="Food / Menu Photo" preview={form.photoPreview} status={form.photoPreview ? "Ready" : "Waiting"} onUpload={onPhoto} />
+        <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Food Name" className="w-full border rounded-2xl px-4 py-3" required />
+        <input value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="Price" className="w-full border rounded-2xl px-4 py-3" required />
+        <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full border rounded-2xl px-4 py-3">
+          <option>Malay</option>
+          <option>Chinese</option>
+          <option>Indian</option>
+          <option>Healthy</option>
+        </select>
+        <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" className="w-full border rounded-2xl px-4 py-3" rows="3" required></textarea>
+        <button type="submit" disabled={!canPost || !form.photoPreview} className="w-full bg-orange-500 text-white py-3 rounded-2xl font-semibold disabled:bg-gray-300">
+          Upload Food
+        </button>
+        {!canPost && <div className="text-xs text-gray-500">Menu posting is unlocked only after admin approval.</div>}
+      </form>
+
+      <div className="bg-white rounded-3xl p-6 shadow-lg space-y-3">
+        <h3 className="font-bold text-lg">Incoming Orders</h3>
+        {momOrders.length === 0 ? (
+          <p className="text-gray-500">No orders yet.</p>
+        ) : momOrders.map(o => (
+          <div key={o.id} className="bg-orange-50 rounded-2xl p-4">
+            <div className="font-semibold">Order #{o.id}</div>
+            <div className="text-sm text-gray-600 mt-1">Customer: {o.customer.name}</div>
+            <div className="text-sm text-gray-600">Address: {o.customer.address}</div>
+            <div className="text-sm text-gray-600">Items: {o.meals.map(m => `${m.quantity}x ${m.name}`).join(", ")}</div>
+            <div className="mt-2 font-bold text-orange-600">RM{o.total.toFixed(2)}</div>
+            <Badge text={o.status} tone={o.status === "delivered" ? "green" : o.status === "waiting rider" ? "blue" : "yellow"} />
+            <button
+              type="button"
+              onClick={() => {
+                updateOrderStatus(o.id, "waiting rider");
+                toast("Order ready sent to riders");
+              }}
+              className="w-full mt-3 bg-green-500 text-white py-3 rounded-2xl font-semibold"
+            >
+              Order Ready
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RiderDashboard() {
+  const { riders, activeRiderId, setActiveRiderId, uploadDoc, submitRiderReview, orders, assignRider, updateOrderStatus, cancelDelivery, approveProof, rejectProof, toast } = useApp();
+  const rider = riders.find(r => r.id === activeRiderId);
+  const docsDone = !!(rider?.uploads.face && rider?.uploads.license);
+  const canConfirm = rider?.status === "approved";
+  const availableJobs = orders.filter(o => o.status === "waiting rider" && !o.assignedRiderId);
+  const activeDelivery = orders.find(o => o.assignedRiderId === activeRiderId && o.status !== "paid");
+  const completedOrders = orders.filter(o => o.assignedRiderId === activeRiderId && o.status === "paid");
+  const totalEarnings = completedOrders.reduce((sum, o) => sum + (o.riderEarning || 0), 0);
+
+  const submitReview = () => {
+    if (!docsDone) return toast("Upload both rider docs first", "warn");
+    submitRiderReview(activeRiderId);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-3xl p-6 shadow-lg flex justify-between items-center gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-orange-600">Rider Dashboard</h2>
+          <p className="text-gray-500">Deliver homemade food around your area</p>
+        </div>
+        <select value={activeRiderId} onChange={(e) => setActiveRiderId(e.target.value)} className="border rounded-full px-4 py-2">
+          {riders.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+        </select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white rounded-3xl p-5 shadow">
+          <div className="text-gray-500 text-sm">Paid Deliveries</div>
+          <div className="text-2xl font-bold text-orange-600">{completedOrders.length}</div>
+        </div>
+        <div className="bg-white rounded-3xl p-5 shadow">
+          <div className="text-gray-500 text-sm">Total Earnings</div>
+          <div className="text-2xl font-bold text-green-600">RM{totalEarnings.toFixed(2)}</div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl p-6 shadow-lg space-y-3">
+        <h3 className="font-bold text-lg">Verification Uploads</h3>
+        <ImageUploadBox label="Scan Face" preview={rider?.uploads.face} status={rider?.uploads.face ? "Uploaded" : "Waiting"} onUpload={(file) => uploadDoc("rider", activeRiderId, "face", file)} />
+        <ImageUploadBox label="Motor Licence" preview={rider?.uploads.license} status={rider?.uploads.license ? "Uploaded" : "Waiting"} onUpload={(file) => uploadDoc("rider", activeRiderId, "license", file)} />
+        <button type="button" onClick={submitReview} className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold">Submit for Admin Review</button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge text={rider?.status || "unknown"} tone={rider?.status === "approved" ? "green" : rider?.status === "rejected" ? "red" : rider?.status === "in-review" ? "blue" : "yellow"} />
+          {rider?.status === "rejected" && <span className="text-sm text-red-600">{rider.rejectionReason}</span>}
+          {rider?.status === "in-review" && <span className="text-sm text-blue-600">Waiting for admin approval</span>}
+          {rider?.status === "approved" && <span className="text-sm text-green-600">You are approved</span>}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl p-6 shadow-lg space-y-3">
+        <h3 className="font-bold text-lg">Delivery Notifications</h3>
+        {availableJobs.length === 0 ? (
+          <p className="text-gray-500">No notifications yet.</p>
+        ) : availableJobs.map(o => (
+          <div key={o.id} className="bg-orange-50 rounded-2xl p-4">
+            <div className="font-semibold">New delivery: Order #{o.id}</div>
+            <div className="text-sm text-gray-600 mt-1">Pickup: Mom's kitchen</div>
+            <div className="text-sm text-gray-600">Location: {o.customer.address}</div>
+            <div className="text-sm text-gray-600">Potential earning: RM{(o.riderEarning || 0).toFixed(2)}</div>
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <button type="button" onClick={() => cancelDelivery(o.id)} className="bg-red-500 text-white py-3 rounded-2xl font-semibold">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!canConfirm) return toast("Rider is not approved yet", "warn");
+                  assignRider(o.id, activeRiderId);
+                  toast("Delivery confirmed");
+                }}
+                disabled={!canConfirm}
+                className="bg-orange-500 text-white py-3 rounded-2xl font-semibold disabled:bg-gray-300"
+              >
+                Confirm Delivery
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {activeDelivery && (
+        <div className="bg-white rounded-3xl p-6 shadow-lg space-y-3">
+          <h3 className="font-bold text-lg">Active Delivery</h3>
+          <div className="bg-orange-50 rounded-2xl p-4">
+            <div className="font-semibold">Order #{activeDelivery.id}</div>
+            <div className="text-sm text-gray-600 mt-1">Pickup: Mom's kitchen</div>
+            <div className="text-sm text-gray-600">Destination: {activeDelivery.customer.address}</div>
+            <div className="text-sm text-gray-600">Status: {activeDelivery.status}</div>
+            <div className="text-sm text-gray-600">Earning: RM{(activeDelivery.riderEarning || 0).toFixed(2)}</div>
+          </div>
+
+          {activeDelivery.status === "accepted" && (
+            <button type="button" onClick={() => updateOrderStatus(activeDelivery.id, "taken")} className="w-full bg-blue-500 text-white py-3 rounded-2xl font-semibold">Order Taken</button>
+          )}
+
+          {activeDelivery.status === "taken" && (
+            <button type="button" onClick={() => updateOrderStatus(activeDelivery.id, "ontheway")} className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold">On The Way to Customer</button>
+          )}
+
+          {activeDelivery.status === "ontheway" && (
+            <button
+              type="button"
+              onClick={() => updateOrderStatus(activeDelivery.id, "delivered")}
+              className="w-full bg-orange-500 text-white py-3 rounded-2xl font-semibold"
+            >
+              Delivered
+            </button>
+          )}
+
+          {activeDelivery.status === "delivered" && (
+            <div className="space-y-3">
+              <ImageUploadBox
+                label="Proof of Delivery Photo"
+                preview={activeDelivery.proofPhoto}
+                status={activeDelivery.proofPhoto ? "Uploaded" : "Waiting"}
+                onUpload={(file) => uploadDoc("pod", activeDelivery.id, "pod", file)}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (!activeDelivery.proofPhoto) return toast("Upload proof photo first", "warn");
+                  updateOrderStatus(activeDelivery.id, "pending approval");
+                  toast("Proof sent to admin");
+                }}
+                className="w-full bg-purple-500 text-white py-3 rounded-2xl font-semibold"
+              >
+                Send Proof to Admin
+              </button>
+            </div>
+          )}
+
+          {activeDelivery.status === "pending approval" && (
+            <div className="bg-purple-50 rounded-2xl p-4 text-sm text-gray-700">
+              Waiting for admin proof approval.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminDashboard() {
+  const { moms, riders, orders, approveMom, rejectMom, approveRider, rejectRider, approveProof, rejectProof, setRoute, toast } = useApp();
+  const proofQueue = orders.filter(o => o.status === "pending approval");
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-3xl p-6 shadow-lg">
+        <button onClick={() => setRoute("/")} className="text-gray-600 mb-3">← Back</button>
+        <h2 className="text-2xl font-bold text-orange-600">Admin Panel</h2>
+        <p className="text-gray-500">Review and approve mom, rider, and proof submissions</p>
+      </div>
+
+      <div className="bg-white rounded-3xl p-6 shadow-lg space-y-3">
+        <h3 className="font-bold text-lg">Proof of Delivery Queue</h3>
+        {proofQueue.length === 0 ? (
+          <p className="text-gray-500">No proof waiting.</p>
+        ) : proofQueue.map(o => (
+          <div key={o.id} className="bg-purple-50 rounded-2xl p-4 space-y-2">
+            <div className="font-semibold">Order #{o.id}</div>
+            <div className="text-sm text-gray-600">Customer: {o.customer.name}</div>
+            <div className="text-sm text-gray-600">Address: {o.customer.address}</div>
+            {o.proofPhoto && <img src={o.proofPhoto} alt="proof" className="w-full h-48 object-cover rounded-2xl mt-2" />}
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  approveProof(o.id);
+                  toast("Proof approved. Rider gets RM5");
+                }}
+                className="bg-green-500 text-white py-3 rounded-2xl font-semibold"
+              >
+                Approve Proof
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  rejectProof(o.id);
+                  toast("Proof rejected", "error");
+                }}
+                className="bg-red-500 text-white py-3 rounded-2xl font-semibold"
+              >
+                Reject Proof
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-3xl p-6 shadow-lg space-y-3">
+        <h3 className="font-bold text-lg">Mom Verification Queue</h3>
+        {moms.map(m => (
+          <div key={m.id} className="bg-orange-50 rounded-2xl p-4 space-y-2">
+            <div className="font-semibold">{m.name}</div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge text={m.status} tone={m.status === "approved" ? "green" : m.status === "rejected" ? "red" : m.status === "in-review" ? "blue" : "yellow"} />
+              {m.status === "rejected" && <span className="text-sm text-red-600">{m.rejectionReason}</span>}
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>{m.uploads.face ? <img src={m.uploads.face} className="h-24 w-full object-cover rounded-xl" /> : <div className="h-24 rounded-xl bg-gray-100 flex items-center justify-center text-xs">Face</div>}</div>
+              <div>{m.uploads.ic ? <img src={m.uploads.ic} className="h-24 w-full object-cover rounded-xl" /> : <div className="h-24 rounded-xl bg-gray-100 flex items-center justify-center text-xs">IC</div>}</div>
+              <div>{m.uploads.kitchen ? <img src={m.uploads.kitchen} className="h-24 w-full object-cover rounded-xl" /> : <div className="h-24 rounded-xl bg-gray-100 flex items-center justify-center text-xs">Kitchen</div>}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => { approveMom(m.id); toast(`${m.name} approved`, "success"); }} className="bg-green-500 text-white py-3 rounded-2xl font-semibold">Approve</button>
+              <button type="button" onClick={() => { rejectMom(m.id); toast(`${m.name} rejected`, "error"); }} className="bg-red-500 text-white py-3 rounded-2xl font-semibold">Reject</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-3xl p-6 shadow-lg space-y-3">
+        <h3 className="font-bold text-lg">Rider Verification Queue</h3>
+        {riders.map(r => (
+          <div key={r.id} className="bg-orange-50 rounded-2xl p-4 space-y-2">
+            <div className="font-semibold">{r.name}</div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge text={r.status} tone={r.status === "approved" ? "green" : r.status === "rejected" ? "red" : r.status === "in-review" ? "blue" : "yellow"} />
+              {r.status === "rejected" && <span className="text-sm text-red-600">{r.rejectionReason}</span>}
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>{r.uploads.face ? <img src={r.uploads.face} className="h-24 w-full object-cover rounded-xl" /> : <div className="h-24 rounded-xl bg-gray-100 flex items-center justify-center text-xs">Face</div>}</div>
+              <div>{r.uploads.license ? <img src={r.uploads.license} className="h-24 w-full object-cover rounded-xl" /> : <div className="h-24 rounded-xl bg-gray-100 flex items-center justify-center text-xs">License</div>}</div>
+              <div>{r.uploads.pod ? <img src={r.uploads.pod} className="h-24 w-full object-cover rounded-xl" /> : <div className="h-24 rounded-xl bg-gray-100 flex items-center justify-center text-xs">POD</div>}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => { approveRider(r.id); toast(`${r.name} approved`, "success"); }} className="bg-green-500 text-white py-3 rounded-2xl font-semibold">Approve</button>
+              <button type="button" onClick={() => { rejectRider(r.id); toast(`${r.name} rejected`, "error"); }} className="bg-red-500 text-white py-3 rounded-2xl font-semibold">Reject</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RouterView() {
+  const { route } = useApp();
+  if (route === "/") return <UserHome />;
+  if (route.startsWith("/meal/")) return <MealDetail id={route.split("/")[2]} />;
+  if (route === "/cart") return <CartPage />;
+  if (route === "/checkout") return <CheckoutPage />;
+  if (route === "/order-success") return <div className="space-y-4"><OrderSuccessPage /><UserTrackingCard /></div>;
+  if (route === "/mom-dashboard") return <MomDashboard />;
+  if (route === "/rider-dashboard") return <RiderDashboard />;
+  if (route === "/admin-dashboard") return <AdminDashboard />;
+  return <UserHome />;
+}
+
+function App() {
+  return (
+    <AppProvider>
+      <div className="min-h-screen relative bg-orange-50 p-4 overflow-hidden">
+        <style>{`
+          @keyframes marquee {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+          }
+          @keyframes marqueeReverse {
+            from { transform: translateX(-50%); }
+            to { transform: translateX(0); }
+          }
+        `}</style>
+        <FloatingCatalog />
+        <ToastLayer />
+        <div className="relative z-10 max-w-md mx-auto">
+          <NavTabs />
+          <RouterView />
+        </div>
+      </div>
+    </AppProvider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
