@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, Bell, ChefHat, Check, ChevronDown, CircleAlert, ClipboardCheck, Clock3,
+  ArrowRight, Bell, ChefHat, Check, Eye, EyeOff, ChevronDown, CircleAlert, ClipboardCheck, Clock3,
   FileCheck2, Globe2, Heart, Languages, Leaf, LogIn, LogOut, Menu as MenuIcon,
   Moon, PackageCheck, Plus, Search, ShieldCheck, ShoppingBag, Sun, Utensils,
   X, CircleCheck, UserRound, Upload, ClipboardList, RefreshCw, Trash2
@@ -16,6 +16,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [authMode, setAuthMode] = useState('signin');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -45,6 +46,19 @@ export default function App() {
   const role = hasSupabase ? (profile?.role || null) : null;
   const isAdmin = role === 'admin';
   const isCook = role === 'cook';
+
+  useEffect(() => {
+      if (!user || !profile?.role || page !== 'auth') return;
+
+      if (profile.role === 'admin') {
+        setPage('admin');
+    } else if (profile.role === 'cook') {
+       setPage('cook');
+    } else if (profile.role === 'customer') {
+       setPage('orders');
+    }
+  }, [user, profile?.role, page]);
+
 
   useEffect(() => { localStorage.setItem('mp-language', lang); document.documentElement.lang = lang; }, [lang]);
   useEffect(() => { localStorage.setItem('mp-theme', theme); document.documentElement.dataset.theme = theme; }, [theme]);
@@ -353,6 +367,12 @@ export default function App() {
       <button className="mobile-menu" onClick={() => setMobileNav(v => !v)} aria-label="Toggle navigation"><MenuIcon size={20} /></button>
       <nav className={`site-nav ${mobileNav ? 'open' : ''}`}>
         <button className={page === 'discover' ? 'active' : ''} onClick={() => changePage('discover')}>{t('discover')}</button>
+        <button
+  className={page === 'explore' ? 'active' : ''}
+  onClick={() => changePage('explore')}
+>
+  {t('exploreMore')}
+</button>
         {user && isCook && <button className={page === 'cook' ? 'active' : ''} onClick={() => changePage('cook')}>{t('myDashboard')}</button>}
         {user && role === 'customer' && <button className={page === 'orders' ? 'active' : ''} onClick={() => changePage('orders')}>{t('orderHistory')}</button>}
         {user && isAdmin && <button className={page === 'admin' ? 'active' : ''} onClick={() => changePage('admin')}>{t('adminReview')}</button>}
@@ -376,11 +396,39 @@ export default function App() {
           {filteredDishes.length ? <div className="food-grid">{filteredDishes.map(dish => <article className="food-card" key={dish.id}><button className="food-image" onClick={() => setSelectedDish(dish)}>{dish.image_url ? <img src={dish.image_url} alt={dish.name} loading="lazy" /> : <div className="own-dish-placeholder"><Utensils size={24} /></div>}<span className="food-tag"><ShieldCheck size={13} /> {t('approvedSeller')}</span><HygieneBadge t={t} status={getHygieneStatus(dish)} /></button><div className="food-card-body"><div className="cook-label"><ChefHat size={14} /> {dish.cook_name || t('cookName')}</div><button className="food-title" onClick={() => setSelectedDish(dish)}>{dish.name}</button><p>{dish.description}</p><div className="food-card-bottom"><strong>{money(dish.price)}</strong><button className="small-primary" onClick={() => { setSelectedDish(dish); setOrderDish(dish); setOrderSuccess(false); if (!user) setPage('auth'); }}><Plus size={16} /> {t('order')}</button></div><small className="portion-label">{t('availableLabel')}: {dish.portions_available}</small></div></article>)}</div> : <div className="empty-state"><span>🍲</span><h3>{t('noDishesYet')}</h3><p>{t('noResults')}</p></div>}
         </section>
         <section className="trust-strip"><div><ShieldCheck size={22} /><span><strong>{t('foodSafety')}</strong><small>{t('foodSafetyText')}</small></span></div><div><ShoppingBag size={22} /><span><strong>{t('paymentInfo')}</strong><small>{t('orderNotice')}</small></span></div></section>
-        <PhaseRoadmap t={t} open={phasesOpen} onToggle={setPhasesOpen} />
         <PublicReviews t={t} reviews={reviews} />
       </>}
+ 
+{page === 'explore' && (
+  <ExploreMorePage
+    t={t}
+    phasesOpen={phasesOpen}
+    setPhasesOpen={setPhasesOpen}
+  />
+)}
 
-      {page === 'auth' && <section className="auth-layout"><div className="auth-story"><div className="brand-symbol large"><Leaf size={30} /></div><div className="eyebrow">{t('tagline')}</div><h1>{t('authWelcome')}</h1><p>{t('authText')}</p><div className="auth-feature"><ShieldCheck size={19} /> {t('privacyNote')}</div></div><div className="auth-card"><div className="auth-tabs"><button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); setError(''); }}>{t('signIn')}</button><button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); setError(''); }}>{t('signUp')}</button></div><h2>{authMode === 'signin' ? t('signIn') : t('signUp')}</h2><form onSubmit={handleAuth} className="form-stack">{authMode === 'signup' && <><label>{t('fullName')}<input name="displayName" required minLength="2" /></label><label>{t('role')}<select name="role"><option value="customer">{t('customer')}</option><option value="cook">{t('cook')}</option></select></label></>}<label>{t('email')}<input name="email" type="email" required placeholder={t('emailPlaceholder')} autoComplete="email" /></label><label>{t('password')}<input name="password" type="password" required minLength="8" placeholder={t('passwordHint')} autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} /></label><button className="primary-button full-width" disabled={busy}>{busy ? t('saving') : authMode === 'signin' ? t('signIn') : t('createAccount')} <ArrowRight size={17} /></button></form>
+      {page === 'auth' && <section className="auth-layout"><div className="auth-story"><div className="brand-symbol large"><Leaf size={30} /></div><div className="eyebrow">{t('tagline')}</div><h1>{t('authWelcome')}</h1><p>{t('authText')}</p><div className="auth-feature"><ShieldCheck size={19} /> {t('privacyNote')}</div></div><div className="auth-card"><div className="auth-tabs"><button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); setError(''); }}>{t('signIn')}</button><button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); setError(''); }}>{t('signUp')}</button></div><h2>{authMode === 'signin' ? t('signIn') : t('signUp')}</h2><form onSubmit={handleAuth} className="form-stack">{authMode === 'signup' && <><label>{t('fullName')}<input name="displayName" required minLength="2" /></label><label>{t('role')}<select name="role"><option value="customer">{t('customer')}</option><option value="cook">{t('cook')}</option></select></label></>}<label>{t('email')}<input name="email" type="email" required placeholder={t('emailPlaceholder')} autoComplete="email" /></label><label>
+  {t('password')}
+  <div className="password-input-wrap">
+    <input
+      name="password"
+      type={showPassword ? 'text' : 'password'}
+      required
+      minLength="8"
+      placeholder={t('passwordHint')}
+      autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+    />
+    <button
+      type="button"
+      className="password-toggle"
+      onClick={() => setShowPassword(value => !value)}
+      aria-label={showPassword ? 'Hide password' : 'Show password'}
+      aria-pressed={showPassword}
+    >
+      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+    </button>
+  </div>
+</label><button className="primary-button full-width" disabled={busy}>{busy ? t('saving') : authMode === 'signin' ? t('signIn') : t('createAccount')} <ArrowRight size={17} /></button></form>
           <p className="auth-footnote">{hasSupabase ? t('adminSetup') : t('setupText')}</p></div></section>}
 
       {page === 'cook' && user && isCook && <CookDashboard t={t} user={user} profile={profile} application={myApplication} dishes={myDishes} orders={myOrders} hygieneSubmissions={hygieneSubmissions} reviews={reviews} notifications={notifications} editingDish={editingDish} setEditingDish={setEditingDish} busy={busy} onApplicationSubmit={submitApplication} onAddDish={addDish} onSubmitHygiene={submitHygieneUpdate} onUpdateOrder={updateOrder} onReadNotification={markNotificationRead} onError={setError} />}
@@ -408,6 +456,152 @@ function getHygieneStatus(dish) {
   if (!dish.hygiene_last_updated_at) return 'outdated';
   return Date.now() - new Date(dish.hygiene_last_updated_at).getTime() <= threeDays ? 'updated' : 'outdated';
 }
+
+
+function ExploreMorePage({ t, phasesOpen, setPhasesOpen }) {
+
+  return (
+    <div className="explore-page">
+      <section className="explore-hero">
+        <div className="eyebrow">{t('exploreEyebrow')}</div>
+        <h1>{t('originStoryTitle')}</h1>
+        <p>{t('originStorySubtitle')}</p>
+      </section>
+
+      <section className="explore-content-card">
+        <h2>{t('storyHeading')}</h2>
+        <p>{t('storyParagraph1')}</p>
+        <p>{t('storyParagraph2')}</p>
+        <p>{t('storyParagraph3')}</p>
+        <p>{t('storyParagraph4')}</p>
+        <p>{t('storyParagraph5')}</p>
+      </section>
+
+      <section className="explore-content-card">
+        <h2>{t('objectivesTitle')}</h2>
+        <div className="explore-objectives">
+          <article>
+            <span>01</span>
+            <h3>{t('objective1Title')}</h3>
+            <p>{t('objective1Text')}</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>{t('objective2Title')}</h3>
+            <p>{t('objective2Text')}</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>{t('objective3Title')}</h3>
+            <p>{t('objective3Text')}</p>
+          </article>
+          <article>
+            <span>04</span>
+            <h3>{t('objective4Title')}</h3>
+            <p>{t('objective4Text')}</p>
+          </article>
+        </div>
+      </section>
+
+      <section className="explore-content-card">
+        <h2>{t('visionTitle')}</h2>
+        <p>{t('visionParagraph1')}</p>
+        <p>{t('visionParagraph2')}</p>
+      </section>
+
+      <section className="explore-content-card">
+        <PhaseRoadmap
+          t={t}
+          open={phasesOpen}
+          onToggle={setPhasesOpen}
+        />
+      </section>
+
+      <section className="explore-team-card">
+        <h2>{t('joinTeamTitle')}</h2>
+        <p>{t('joinTeamText')}</p>
+        <p>{t('joinTeamText2')}</p>
+        <a href="https://mail.google.com/mail/u/6/#inbox?compose=CllgCJZdBnnPpdCvLtbVxXBxPkMQcHfnWFZcpKgXlxjpsqJWKhxgbxTspgjGqWpFWLvkBVtvkTL">
+          momsperisasupport@gmail.com
+        </a>
+      </section>
+
+      <section className="explore-content-card">
+        <h2>{t('contactTitle')}</h2>
+        <p>{t('contactText')}</p>
+
+        <form
+          className="form-stack explore-contact-form"
+         
+
+
+onSubmit={(event) => {
+  event.preventDefault();
+
+  const formData = new FormData(event.currentTarget);
+
+  const name = String(formData.get('name') || '').trim();
+  const email = String(formData.get('email') || '').trim();
+  const message = String(formData.get('message') || '').trim();
+
+  const subject = `Mom's Perisa enquiry from ${name}`;
+
+  const body =
+    `Name: ${name}\n` +
+    `Email: ${email}\n\n` +
+    `Message:\n${message}`;
+
+  const gmailUrl = new URL(
+    'https://mail.google.com/mail/u/0/'
+  );
+
+  gmailUrl.searchParams.set('view', 'cm');
+  gmailUrl.searchParams.set('fs', '1');
+  gmailUrl.searchParams.set('to', 'momsperisasupport@gmail.com');
+  gmailUrl.searchParams.set('su', subject);
+  gmailUrl.searchParams.set('body', body);
+
+  window.open(gmailUrl.toString(), '_blank');
+}}
+
+
+        >
+          <label>
+            {t('contactName')}
+            <input name="name" required minLength="2" />
+          </label>
+
+          <label>
+            {t('contactEmail')}
+            <input name="email" type="email" required />
+          </label>
+
+          <label>
+            {t('contactMessage')}
+            <textarea name="message" rows="5" required minLength="10" />
+          </label>
+
+          <button className="primary-button" type="submit">
+            {t('contactSend')}
+          </button>
+        </form>
+
+        <p className="contact-prototype-notice">
+          {t('contactPrototypeNotice')}
+        </p>
+
+        <p>
+          {t('preferEmail')}{' '}
+          <a href="mailto:momsperisasupport@gmail.com">
+            {t('contactEmailLink')}
+          </a>
+        </p>
+      </section>
+    </div>
+  );
+}
+
+
 
 function HygieneBadge({ t, status }) {
   return <span className={`hygiene-status-pill ${status}`}>{t(status === 'process' ? 'hygieneProcess' : status === 'updated' ? 'hygieneUpdated' : 'hygieneOutdated')}</span>;
@@ -513,3 +707,4 @@ function PrivateDocumentLink({ path, t }) {
 function ReviewUnit({ title, status, path, notes = '', t, onAction, busy }) {
   return <div className="review-unit"><div className="review-unit-heading"><div><strong>{title}</strong><small>{status === 'approved' ? t('approved') : status === 'changes_requested' ? t('needsChanges') : t('underReview')}</small></div><span className={`review-status-dot ${status}`} /></div>{notes && <p>{notes}</p>}{path && <PrivateDocumentLink path={path} t={t} />}<div className="review-actions"><button className="outline-button" disabled={busy} onClick={() => onAction('approve')}><Check size={15} /> {t('approve')}</button><button className="danger-button" disabled={busy} onClick={() => onAction('request')}><RefreshCw size={14} /> {t('requestChanges')}</button></div></div>;
 }
+
