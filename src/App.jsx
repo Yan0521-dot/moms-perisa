@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, ChefHat, Check, ChevronDown, CircleAlert, ClipboardCheck, Clock3,
+  ArrowRight, Bell, ChefHat, Check, ChevronDown, CircleAlert, ClipboardCheck, Clock3,
   FileCheck2, Globe2, Heart, Languages, Leaf, LogIn, LogOut, Menu as MenuIcon,
   Moon, PackageCheck, Plus, Search, ShieldCheck, ShoppingBag, Sun, Utensils,
   X, CircleCheck, UserRound, Upload, ClipboardList, RefreshCw, Trash2
@@ -8,28 +8,13 @@ import {
 import { hasSupabase, supabase } from './supabase';
 import { languages, translate } from './i18n';
 
-const demoDishes = [
-  { id: 'demo-1', cook_id: 'demo-cook-1', cook_name: 'Kak Mira Kitchen', name: 'Nasi Lemak Ayam Berempah', description: 'Nasi santan wangi, sambal, ikan bilis, kacang, timun dan ayam berempah rangup.', ingredients: 'Rice, coconut milk, chicken, peanuts, anchovies, egg. Ask the cook about allergens.', price: 12.9, category: 'rice', portions_available: 12, image_url: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=900&q=80', status: 'approved', available: true },
-  { id: 'demo-2', cook_id: 'demo-cook-2', cook_name: 'Dapur Mak Salmah', name: 'Homestyle Chicken Curry', description: 'Ayam kari dimasak perlahan dengan rempah keluarga dan nasi putih.', ingredients: 'Chicken, spices, coconut milk. Ask the cook about allergens.', price: 10.5, category: 'mains', portions_available: 8, image_url: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&w=900&q=80', status: 'approved', available: true },
-  { id: 'demo-3', cook_id: 'demo-cook-3', cook_name: 'Manis by Aunty Lee', name: 'Kuih Seri Muka (4 pcs)', description: 'Kuih pandan berlapis dengan pulut yang dibuat segar dalam kelompok kecil.', ingredients: 'Glutinous rice, coconut milk, pandan, egg. Ask about allergens.', price: 7, category: 'desserts', portions_available: 10, image_url: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=900&q=80', status: 'approved', available: true },
-  { id: 'demo-4', cook_id: 'demo-cook-1', cook_name: 'Kak Mira Kitchen', name: 'Vegetarian Sayur Lodeh', description: 'Sayur campur dalam kuah santan berempah yang menenangkan.', ingredients: 'Mixed vegetables, coconut milk, spices.', price: 8.9, category: 'vegetarian', portions_available: 6, image_url: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80', status: 'approved', available: true },
-];
-
-const initialDemoApplications = [
-  { id: 'demo-app-1', user_id: 'demo-cook-1', display_name: 'Kak Mira Kitchen', ssm_number: '202401234567', ssm_file_path: 'demo/ssm-kak-mira.pdf', hygiene_file_path: 'demo/kitchen-kak-mira.jpg', hygiene_notes: 'Kitchen surfaces cleaned before preparation; storage and handwashing area shown.', ssm_status: 'pending', hygiene_status: 'pending', status: 'pending', rejection_reason: '', created_at: new Date().toISOString() },
-  { id: 'demo-app-2', user_id: 'demo-cook-2', display_name: 'Dapur Mak Salmah', ssm_number: '202409876543', ssm_file_path: 'demo/ssm-salmah.pdf', hygiene_file_path: 'demo/kitchen-salmah.jpg', hygiene_notes: 'Kitchen photo needs a clearer view of food storage.', ssm_status: 'changes_requested', hygiene_status: 'changes_requested', status: 'changes_requested', rejection_reason: 'Please upload a clearer kitchen photo showing the food preparation and storage areas.', created_at: new Date().toISOString() },
-];
-
 const money = n => `RM ${Number(n || 0).toFixed(2)}`;
-const readLocal = (key, fallback) => { try { const value = localStorage.getItem(key); return value ? JSON.parse(value) : fallback; } catch { return fallback; } };
-const saveLocal = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
 
 export default function App() {
   const [lang, setLang] = useState(() => localStorage.getItem('mp-language') || 'en');
   const [theme, setTheme] = useState(() => localStorage.getItem('mp-theme') || 'light');
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [demoRole, setDemoRole] = useState('customer');
   const [authMode, setAuthMode] = useState('signin');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -37,9 +22,15 @@ export default function App() {
   const [page, setPage] = useState('discover');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
-  const [dishes, setDishes] = useState(() => readLocal('mp-demo-dishes', demoDishes));
-  const [applications, setApplications] = useState(() => readLocal('mp-demo-applications', initialDemoApplications));
-  const [orders, setOrders] = useState(() => readLocal('mp-demo-orders', []));
+  const [dishes, setDishes] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [pendingDishes, setPendingDishes] = useState([]);
+  const [hygieneSubmissions, setHygieneSubmissions] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [phasesOpen, setPhasesOpen] = useState(null);
+  const [editingDish, setEditingDish] = useState(null);
   const [myApplication, setMyApplication] = useState(null);
   const [myDishes, setMyDishes] = useState([]);
   const [myOrders, setMyOrders] = useState([]);
@@ -51,7 +42,7 @@ export default function App() {
 
   const t = useCallback((key) => translate(lang, key), [lang]);
   const user = session?.user || null;
-  const role = hasSupabase ? (profile?.role || 'customer') : (user ? demoRole : null);
+  const role = hasSupabase ? (profile?.role || null) : null;
   const isAdmin = role === 'admin';
   const isCook = role === 'cook';
 
@@ -68,11 +59,8 @@ export default function App() {
 
   const refreshData = useCallback(async () => {
     if (!hasSupabase || !user) {
-      const app = applications.find(a => a.user_id === user?.id);
-      setMyApplication(app || null);
-      setMyDishes(dishes.filter(d => d.cook_id === user?.id));
-      setMyOrders(orders.filter(o => o.customer_id === user?.id));
-      setAllOrders(orders);
+      setMyApplication(null); setMyDishes([]); setMyOrders([]); setAllOrders([]);
+      setApplications([]); setPendingDishes([]); setHygieneSubmissions([]); setNotifications([]); setReviews([]);
       return;
     }
     const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
@@ -82,37 +70,61 @@ export default function App() {
       setMyApplication(app || null);
       const { data: mine } = await supabase.from('dishes').select('*').eq('cook_id', user.id).order('created_at', { ascending: false });
       setMyDishes(mine || []);
-      const { data: cookOrders } = await supabase.from('orders').select('*, order_items(*)').eq('cook_id', user.id).order('created_at', { ascending: false });
+      const { data: cookOrders } = await supabase.from('orders').select('*, order_items(*), reviews(*)').eq('cook_id', user.id).order('created_at', { ascending: false });
       setMyOrders(cookOrders || []);
+      const { data: hygiene } = await supabase.from('hygiene_submissions').select('*').eq('cook_id', user.id).order('submitted_at', { ascending: false });
+      setHygieneSubmissions(hygiene || []);
+      const { data: cookReviews } = await supabase.from('reviews').select('*, profiles!reviews_customer_id_fkey(display_name), cook_profile:profiles!reviews_cook_id_fkey(display_name)').eq('cook_id', user.id).order('created_at', { ascending: false });
+      setReviews(cookReviews || []);
+      const { data: cookNotifications } = await supabase.from('notifications').select('*').eq('recipient_id', user.id).order('created_at', { ascending: false }).limit(50);
+      setNotifications(cookNotifications || []);
     }
     if (p?.role === 'customer') {
-      const { data: customerOrders } = await supabase.from('orders').select('*, order_items(*)').eq('customer_id', user.id).order('created_at', { ascending: false });
+      const { data: customerOrders } = await supabase.from('orders').select('*, order_items(*), reviews(*)').eq('customer_id', user.id).order('created_at', { ascending: false });
       setMyOrders(customerOrders || []);
+      const { data: customerNotifications } = await supabase.from('notifications').select('*').eq('recipient_id', user.id).order('created_at', { ascending: false }).limit(50);
+      setNotifications(customerNotifications || []);
+      const { data: publicReviews } = await supabase.from('reviews').select('*, profiles!reviews_customer_id_fkey(display_name), cook_profile:profiles!reviews_cook_id_fkey(display_name)').order('created_at', { ascending: false }).limit(100);
+      setReviews(publicReviews || []);
     }
     if (p?.role === 'admin') {
       const { data: apps } = await supabase.from('cook_applications').select('*, profiles!cook_applications_user_id_fkey(display_name)').order('created_at', { ascending: false });
       setApplications(apps || []);
       const { data: adminOrders } = await supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }).limit(200);
       setAllOrders(adminOrders || []);
+      const { data: reviewQueue } = await supabase.from('dishes').select('*, profiles!dishes_cook_id_fkey(display_name)').eq('status', 'pending').order('created_at', { ascending: false });
+      setPendingDishes(reviewQueue || []);
+      const { data: hygieneQueue } = await supabase.from('hygiene_submissions').select('*, profiles!hygiene_submissions_cook_id_fkey(display_name)').eq('status', 'pending').order('submitted_at', { ascending: false });
+      setHygieneSubmissions(hygieneQueue || []);
+      const { data: adminNotifications } = await supabase.from('notifications').select('*').eq('recipient_id', user.id).order('created_at', { ascending: false }).limit(50);
+      setNotifications(adminNotifications || []);
     }
-  }, [user, role, applications, dishes, orders]);
+  }, [user, role]);
 
   useEffect(() => { refreshData(); // Refresh when the active account or its role changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, role]);
+  }, [user, role]);
+
+  useEffect(() => {
+    if (!hasSupabase || !user) return;
+    const refreshTimer = window.setInterval(() => { refreshData(); }, 15000);
+    return () => window.clearInterval(refreshTimer);
+  }, [user?.id, refreshData]);
 
   useEffect(() => {
     let active = true;
     async function loadPublicDishes() {
       if (!hasSupabase) return;
-      const { data, error: queryError } = await supabase.from('dishes').select('*, profiles!dishes_cook_id_fkey(display_name)').eq('status', 'approved').eq('available', true).gt('portions_available', 0).order('created_at', { ascending: false });
-      if (active && !queryError) setDishes((data || []).map(d => ({ ...d, cook_name: d.profiles?.display_name || 'Home cook' })));
+      const { data, error: queryError } = await supabase.from('dishes').select('*, profiles!dishes_cook_id_fkey(display_name,hygiene_review_status,hygiene_last_updated_at,hygiene_pending_since)').eq('status', 'approved').eq('available', true).gt('portions_available', 0).order('created_at', { ascending: false });
+      if (active && !queryError) setDishes((data || []).map(d => ({ ...d, cook_name: d.profiles?.display_name || 'Home cook', hygiene_review_status: d.profiles?.hygiene_review_status, hygiene_last_updated_at: d.profiles?.hygiene_last_updated_at, hygiene_pending_since: d.profiles?.hygiene_pending_since })));
+      const { data: publicReviews } = await supabase.from('reviews').select('*, profiles!reviews_customer_id_fkey(display_name), cook_profile:profiles!reviews_cook_id_fkey(display_name)').order('created_at', { ascending: false }).limit(100);
+      if (active) setReviews(publicReviews || []);
     }
     loadPublicDishes();
-    return () => { active = false; };
+    const refreshTimer = window.setInterval(loadPublicDishes, 20000);
+    return () => { active = false; window.clearInterval(refreshTimer); };
   }, [user, notice]);
 
-  useEffect(() => { if (!hasSupabase) { saveLocal('mp-demo-dishes', dishes); saveLocal('mp-demo-applications', applications); saveLocal('mp-demo-orders', orders); } }, [dishes, applications, orders]);
 
   async function handleAuth(event) {
     event.preventDefault(); setError(''); setBusy(true);
@@ -122,13 +134,8 @@ export default function App() {
     const displayName = String(form.get('displayName') || '').trim();
     const selectedRole = String(form.get('role') || 'customer');
     try {
-      if (!hasSupabase) {
-        const previewRole = authMode === 'signup' ? selectedRole : demoRole;
-        const demoUser = { id: `local-${previewRole}`, email: email || `${previewRole}@local.test`, user_metadata: { display_name: displayName || `${previewRole} preview` } };
-        setSession({ user: demoUser }); setDemoRole(previewRole); setProfile({ id: demoUser.id, role: previewRole, display_name: demoUser.user_metadata.display_name });
-        setPage(previewRole === 'admin' ? 'admin' : previewRole === 'cook' ? 'cook' : 'discover');
-        notify(t('noAuthDemo'));
-      } else if (authMode === 'signup') {
+      if (!hasSupabase) throw new Error(t('setupText'));
+      if (authMode === 'signup') {
         if (!['customer', 'cook'].includes(selectedRole)) throw new Error(t('roleNotAvailable'));
         const { data, error: authError } = await supabase.auth.signUp({ email, password, options: { data: { display_name: displayName, requested_role: selectedRole } } });
         if (authError) throw authError;
@@ -147,14 +154,14 @@ export default function App() {
 
   async function signOut() {
     if (hasSupabase) await supabase.auth.signOut();
-    setSession(null); setProfile(null); setDemoRole('customer'); setPage('discover'); setError('');
+    setSession(null); setProfile(null); setPage('discover'); setError('');
   }
 
   async function uploadPrivateFile(file, kind) {
     if (!file) return null;
     if (file.size > 8 * 1024 * 1024) throw new Error(t('supportedFiles'));
     if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) throw new Error(t('supportedFiles'));
-    if (!hasSupabase) return `local-preview/${kind}/${file.name}`;
+    if (!hasSupabase) throw new Error(t('setupText'));
     const path = `${user.id}/${kind}-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     const { error: uploadError } = await supabase.storage.from('seller-private-documents').upload(path, file, { upsert: false, contentType: file.type });
     if (uploadError) throw uploadError;
@@ -165,6 +172,7 @@ export default function App() {
     event.preventDefault(); setBusy(true); setError('');
     const form = new FormData(event.currentTarget);
     try {
+      if (!hasSupabase) throw new Error(t('setupText'));
       const ssmFile = form.get('ssmFile'); const hygieneFile = form.get('hygieneFile');
       const existingSsm = myApplication?.ssm_file_path; const existingHygiene = myApplication?.hygiene_file_path;
       const mustReupload = myApplication?.status === 'changes_requested';
@@ -177,32 +185,38 @@ export default function App() {
         const { error: saveError } = await supabase.from('cook_applications').upsert(payload, { onConflict: 'user_id' });
         if (saveError) throw saveError;
         const { data: app } = await supabase.from('cook_applications').select('*').eq('user_id', user.id).single(); setMyApplication(app);
-      } else {
-        const app = { ...payload, id: myApplication?.id || `local-app-${Date.now()}`, display_name: profile?.display_name || user.user_metadata?.display_name || 'Preview cook', created_at: myApplication?.created_at || new Date().toISOString() };
-        setApplications(old => [app, ...old.filter(a => a.user_id !== user.id)]); setMyApplication(app);
       }
-      notify(t('applicationSubmitted')); if (hasSupabase) await refreshData();
+      notify(t('applicationSubmitted')); await refreshData();
     } catch (e) { setError(e.message || t('authError')); }
     finally { setBusy(false); }
   }
 
   async function addDish(event) {
     event.preventDefault(); setBusy(true); setError('');
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const price = Number(form.get('price')); const portions = Number(form.get('portions'));
     if (!String(form.get('name') || '').trim() || !String(form.get('description') || '').trim() || !(price > 0) || !(portions >= 1)) { setError(t('dishRequired')); setBusy(false); return; }
-    const payload = { cook_id: user.id, name: String(form.get('name')).trim(), description: String(form.get('description')).trim(), ingredients: String(form.get('ingredients') || '').trim(), price, category: String(form.get('category') || 'mains'), portions_available: portions, image_url: String(form.get('imageUrl') || '').trim() || null, available: true, status: 'pending' };
+    const payload = { cook_id: user.id, name: String(form.get('name')).trim(), description: String(form.get('description')).trim(), ingredients: String(form.get('ingredients') || '').trim(), price, category: String(form.get('category') || 'mains'), portions_available: portions, image_url: String(form.get('imageUrl') || '').trim() || editingDish?.image_url || null, available: true, status: 'pending' };
     try {
-      if (hasSupabase) {
-        if (myApplication?.status !== 'approved') throw new Error(t('appNotReady'));
-        const { error: insertError } = await supabase.from('dishes').insert(payload);
-        if (insertError) throw insertError;
-        const { data: mine } = await supabase.from('dishes').select('*').eq('cook_id', user.id).order('created_at', { ascending: false }); setMyDishes(mine || []);
-      } else {
-        const dish = { ...payload, id: `local-dish-${Date.now()}`, cook_name: profile?.display_name || 'Preview cook', status: 'approved', created_at: new Date().toISOString() };
-        setDishes(old => [dish, ...old]); setMyDishes(old => [dish, ...old]);
+      if (!hasSupabase) throw new Error(t('setupText'));
+      if (myApplication?.status !== 'approved') throw new Error(t('appNotReady'));
+      const foodImage = form.get('foodImage');
+      const enteredImageUrl = String(form.get('imageUrl') || '').trim();
+      if (!foodImage?.size && !enteredImageUrl && !editingDish?.image_url) throw new Error(t('foodImageRequired'));
+      if (foodImage?.size) {
+        if (!foodImage.type.startsWith('image/') || foodImage.size > 6 * 1024 * 1024) throw new Error(t('foodImageRules'));
+        const path = `${user.id}/${Date.now()}-${foodImage.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const { error: imageError } = await supabase.storage.from('food-images').upload(path, foodImage, { upsert: false, contentType: foodImage.type });
+        if (imageError) throw imageError;
+        payload.image_url = supabase.storage.from('food-images').getPublicUrl(path).data.publicUrl;
       }
-      event.currentTarget.reset(); notify(t('dishAdded')); if (hasSupabase) await refreshData();
+      const saveResult = editingDish
+        ? await supabase.from('dishes').update({ ...payload, status: 'pending' }).eq('id', editingDish.id).eq('cook_id', user.id)
+        : await supabase.from('dishes').insert(payload);
+      if (saveResult.error) throw saveResult.error;
+      const { data: mine } = await supabase.from('dishes').select('*').eq('cook_id', user.id).order('created_at', { ascending: false }); setMyDishes(mine || []);
+      setEditingDish(null); formElement.reset(); notify(t(editingDish ? 'dishUpdatedNeedsReview' : 'dishAdded')); await refreshData();
     } catch (e) { setError(e.message || t('authError')); }
     finally { setBusy(false); }
   }
@@ -214,7 +228,8 @@ export default function App() {
     setBusy(true); setError('');
     const orderPayload = { customer_id: user.id, cook_id: orderDish.cook_id, preferred_date: String(form.get('date')), preferred_time: String(form.get('time') || ''), fulfilment_method: String(form.get('fulfilment') || 'pickup'), customer_note: String(form.get('note') || '').trim(), status: 'pending', payment_status: 'external', total_amount: orderDish.price * quantity };
     try {
-      if (hasSupabase) {
+      if (!hasSupabase) throw new Error(t('setupText'));
+      {
         const { error: orderError } = await supabase.rpc('create_preorder', {
           p_cook_id: orderDish.cook_id,
           p_dish_id: orderDish.id,
@@ -225,11 +240,8 @@ export default function App() {
           p_customer_note: String(form.get('note') || '').trim(),
         });
         if (orderError) throw orderError;
-      } else {
-        const localOrder = { ...orderPayload, id: `local-order-${Date.now()}`, created_at: new Date().toISOString(), order_items: [{ dish_name: orderDish.name, unit_price: orderDish.price, quantity }], customer_name: profile?.display_name || user.user_metadata?.display_name || 'Preview customer' };
-        setOrders(old => [localOrder, ...old]); setMyOrders(old => [localOrder, ...old]); setAllOrders(old => [localOrder, ...old]);
       }
-      setOrderSuccess(true); if (hasSupabase) await refreshData(); notify(t('orderSuccess'));
+      setOrderSuccess(true); await refreshData(); notify(t('orderSuccess'));
     } catch (e) { setError(e.message || t('orderSubmitError')); }
     finally { setBusy(false); }
   }
@@ -238,25 +250,17 @@ export default function App() {
     if (action !== 'approve' && !String(reason).trim()) { setError(t('reasonPrompt')); return; }
     setBusy(true); setError('');
     try {
+      if (!hasSupabase || !isAdmin) throw new Error(t('noPermission'));
       const status = action === 'approve' ? 'approved' : 'changes_requested';
-      if (hasSupabase) {
-        const update = { [`${field}_status`]: status, rejection_reason: action === 'approve' ? app.rejection_reason : reason, updated_at: new Date().toISOString() };
-        const { error: updateError } = await supabase.from('cook_applications').update(update).eq('id', app.id);
-        if (updateError) throw updateError;
-        const { data: current } = await supabase.from('cook_applications').select('*').eq('id', app.id).single();
-        const finalStatus = current.ssm_status === 'approved' && current.hygiene_status === 'approved' ? 'approved' : (current.ssm_status === 'changes_requested' || current.hygiene_status === 'changes_requested' ? 'changes_requested' : 'pending');
-        await supabase.from('cook_applications').update({ status: finalStatus, ...(finalStatus === 'approved' ? { rejection_reason: null } : {}) }).eq('id', app.id);
-        const { data: all } = await supabase.from('cook_applications').select('*, profiles!cook_applications_user_id_fkey(display_name)').order('created_at', { ascending: false }); setApplications(all || []);
-      } else {
-        setApplications(old => old.map(a => {
-          if (a.id !== app.id) return a;
-          const next = { ...a, [`${field}_status`]: status, rejection_reason: action === 'approve' ? a.rejection_reason : reason };
-          next.status = next.ssm_status === 'approved' && next.hygiene_status === 'approved' ? 'approved' : (next.ssm_status === 'changes_requested' || next.hygiene_status === 'changes_requested' ? 'changes_requested' : 'pending');
-          if (next.status === 'approved') next.rejection_reason = '';
-          return next;
-        }));
-      }
-      notify(t('reviewSaved')); if (hasSupabase) await refreshData();
+      const update = { [`${field}_status`]: status, rejection_reason: action === 'approve' ? app.rejection_reason : reason, updated_at: new Date().toISOString() };
+      const { error: updateError } = await supabase.from('cook_applications').update(update).eq('id', app.id);
+      if (updateError) throw updateError;
+      const { data: current, error: fetchError } = await supabase.from('cook_applications').select('*').eq('id', app.id).single();
+      if (fetchError) throw fetchError;
+      const finalStatus = current.ssm_status === 'approved' && current.hygiene_status === 'approved' ? 'approved' : (current.ssm_status === 'changes_requested' || current.hygiene_status === 'changes_requested' ? 'changes_requested' : 'pending');
+      const { error: finalError } = await supabase.from('cook_applications').update({ status: finalStatus, ...(finalStatus === 'approved' ? { rejection_reason: null } : {}) }).eq('id', app.id);
+      if (finalError) throw finalError;
+      notify(t('reviewSaved')); await refreshData();
     } catch (e) { setError(e.message || t('authError')); }
     finally { setBusy(false); }
   }
@@ -266,9 +270,75 @@ export default function App() {
       if (hasSupabase) {
         const { error: updateError } = await supabase.from('orders').update({ status, updated_at: new Date().toISOString() }).eq('id', order.id);
         if (updateError) throw updateError;
-      } else { const updated = o => o.id === order.id ? { ...o, status } : o; setOrders(old => old.map(updated)); setMyOrders(old => old.map(updated)); setAllOrders(old => old.map(updated)); }
-      notify(t('orderUpdated')); if (hasSupabase) await refreshData();
+      } else { throw new Error(t('setupText')); }
+      notify(t('orderUpdated')); await refreshData();
     } catch (e) { setError(e.message || t('authError')); }
+  }
+
+  async function reviewDish(dish, action, reason = '') {
+    if (action !== 'approve' && !String(reason).trim()) { setError(t('reasonPrompt')); return; }
+    setBusy(true); setError('');
+    try {
+      if (!hasSupabase || !isAdmin) throw new Error(t('noPermission'));
+      const { error: updateError } = await supabase.from('dishes').update({ status: action === 'approve' ? 'approved' : 'rejected', moderation_note: action === 'approve' ? null : reason }).eq('id', dish.id);
+      if (updateError) throw updateError;
+      notify(t('reviewSaved')); await refreshData();
+    } catch (e) { setError(e.message || t('authError')); }
+    finally { setBusy(false); }
+  }
+
+  async function submitHygieneUpdate(event) {
+    event.preventDefault(); setBusy(true); setError('');
+    const formElement = event.currentTarget;
+    try {
+      if (!hasSupabase || !user || !isCook) throw new Error(t('setupText'));
+      const form = new FormData(formElement); const file = form.get('hygieneFile');
+      if (!file?.size || !['image/jpeg','image/png'].includes(file.type) || file.size > 6 * 1024 * 1024) throw new Error(t('hygieneImageRules'));
+      const path = await uploadPrivateFile(file, 'hygiene-update');
+      const { error: insertError } = await supabase.from('hygiene_submissions').insert({ cook_id: user.id, file_path: path, notes: String(form.get('notes') || '').trim(), status: 'pending' });
+      if (insertError) throw insertError;
+      formElement.reset(); notify(t('hygieneSubmitted')); await refreshData();
+    } catch (e) { setError(e.message || t('authError')); }
+    finally { setBusy(false); }
+  }
+
+  async function reviewHygiene(submission, action, reason = '') {
+    if (action !== 'approve' && !String(reason).trim()) { setError(t('reasonPrompt')); return; }
+    setBusy(true); setError('');
+    try {
+      if (!hasSupabase || !isAdmin) throw new Error(t('noPermission'));
+      const { error: updateError } = await supabase.from('hygiene_submissions').update({ status: action === 'approve' ? 'approved' : 'changes_requested', review_note: action === 'approve' ? null : reason, reviewed_at: new Date().toISOString() }).eq('id', submission.id);
+      if (updateError) throw updateError;
+      notify(t('reviewSaved')); await refreshData();
+    } catch (e) { setError(e.message || t('authError')); }
+    finally { setBusy(false); }
+  }
+
+  async function confirmReceived(order, received) {
+    setBusy(true); setError('');
+    try {
+      if (!hasSupabase) throw new Error(t('setupText'));
+      const { error: confirmError } = await supabase.rpc('confirm_order_received', { p_order_id: order.id, p_received: received });
+      if (confirmError) throw confirmError;
+      notify(received ? t('receiptConfirmed') : t('receiptIssueSent')); await refreshData();
+    } catch (e) { setError(e.message || t('authError')); }
+    finally { setBusy(false); }
+  }
+
+  async function submitReview(order, rating, comment) {
+    setBusy(true); setError('');
+    try {
+      if (!hasSupabase) throw new Error(t('setupText'));
+      const { error: reviewError } = await supabase.from('reviews').insert({ order_id: order.id, customer_id: user.id, cook_id: order.cook_id, rating, comment: String(comment || '').trim() });
+      if (reviewError) throw reviewError;
+      notify(t('reviewSent')); await refreshData();
+    } catch (e) { setError(e.message || t('authError')); }
+    finally { setBusy(false); }
+  }
+
+  async function markNotificationRead(notification) {
+    try { const { error: updateError } = await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', notification.id); if (updateError) throw updateError; await refreshData(); }
+    catch (e) { setError(e.message || t('authError')); }
   }
 
   const filteredDishes = useMemo(() => dishes.filter(d => d.status === 'approved' && d.available !== false && Number(d.portions_available) > 0 && (category === 'all' || d.category === category) && `${d.name} ${d.cook_name || ''} ${d.description || ''}`.toLowerCase().includes(query.toLowerCase())), [dishes, category, query]);
@@ -289,13 +359,13 @@ export default function App() {
         {!user && <button onClick={() => { setAuthMode('signup'); changePage('auth'); }}>{t('becomeCook')}</button>}
       </nav>
       <div className="header-tools">
+        {user && (isCook || role === 'customer') && <button className="notification-nav-button" onClick={() => changePage(isCook ? 'cook' : 'orders')} aria-label={t('notifications')} title={t('notifications')}><Bell size={16}/>{notifications.filter(n => !n.read_at).length > 0 && <span>{notifications.filter(n => !n.read_at).length > 9 ? '9+' : notifications.filter(n => !n.read_at).length}</span>}</button>}
         <label className="language-control" title={t('language')}><Globe2 size={16} /><select value={lang} onChange={e => setLang(e.target.value)} aria-label={t('language')}>{languages.map(l => <option key={l.code} value={l.code}>{l.native}</option>)}</select><ChevronDown size={13} /></label>
         <button className="theme-toggle" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={t('theme')} title={theme === 'light' ? t('dark') : t('light')}>{theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}</button>
         {user ? <button className="account-button" onClick={signOut}><LogOut size={16} /><span>{t('signOut')}</span></button> : <button className="account-button" onClick={() => changePage('auth')}><LogIn size={16} /><span>{t('signIn')}</span></button>}
       </div>
     </header>
 
-    {!hasSupabase && <div className="preview-banner"><CircleAlert size={18} /><div><strong>{t('demoMode')}</strong><p>{t('demoMessage')} <b>{t('dataNotice')}</b></p></div><span className="preview-pill">LOCAL</span></div>}
     {error && <div className="global-alert error-alert"><CircleAlert size={17} /><span>{error}</span><button onClick={() => setError('')} aria-label={t('close')}><X size={16} /></button></div>}
 
     <main className="main-content">
@@ -303,73 +373,122 @@ export default function App() {
         <section className="hero-panel"><div className="hero-text"><div className="eyebrow"><span className="eyebrow-dot" /> {t('introTitle')}</div><h1>{t('hero')}</h1><p>{t('heroText')}</p><div className="hero-badges"><span><ShieldCheck size={16} /> {t('approvedSeller')}</span><span><Clock3 size={16} /> {t('orderInstructions')}</span></div><button className="primary-button" onClick={() => document.getElementById('food-discovery')?.scrollIntoView({ behavior: 'smooth' })}>{t('startBrowsing')} <ArrowRight size={17} /></button></div><div className="hero-visual"><img src="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1100&q=85" alt="Home-cooked meal" /><div className="hero-sticker"><span>♡</span><strong>{t('heroStickerTitle')}</strong><small>{t('heroStickerSubtitle')}</small></div></div></section>
         <section id="food-discovery" className="discovery-section"><div className="section-heading"><div><div className="eyebrow">{t('searchCooks')}</div><h2>{t('welcome')}</h2><p>{t('menuPublicNote')}</p></div><div className="listing-count"><Utensils size={17} /> {filteredDishes.length} {t('dishCount')}</div></div>
           <div className="search-tools"><div className="search-field"><Search size={19} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('search')} /></div><div className="category-pills">{categories.map(c => <button key={c.key} className={category === c.key ? 'selected' : ''} onClick={() => setCategory(c.key)}>{c.label}</button>)}</div></div>
-          {filteredDishes.length ? <div className="food-grid">{filteredDishes.map(dish => <article className="food-card" key={dish.id}><button className="food-image" onClick={() => setSelectedDish(dish)}><img src={dish.image_url || 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&q=80'} alt={dish.name} loading="lazy" /><span className="food-tag"><ShieldCheck size={13} /> {t('approvedSeller')}</span></button><div className="food-card-body"><div className="cook-label"><ChefHat size={14} /> {dish.cook_name || t('cookName')}</div><button className="food-title" onClick={() => setSelectedDish(dish)}>{dish.name}</button><p>{dish.description}</p><div className="food-card-bottom"><strong>{money(dish.price)}</strong><button className="small-primary" onClick={() => { setSelectedDish(dish); setOrderDish(dish); setOrderSuccess(false); if (!user) setPage('auth'); }}><Plus size={16} /> {t('order')}</button></div><small className="portion-label">{t('availableLabel')}: {dish.portions_available}</small></div></article>)}</div> : <div className="empty-state"><span>🍲</span><h3>{t('noDishesYet')}</h3><p>{t('noResults')}</p></div>}
+          {filteredDishes.length ? <div className="food-grid">{filteredDishes.map(dish => <article className="food-card" key={dish.id}><button className="food-image" onClick={() => setSelectedDish(dish)}>{dish.image_url ? <img src={dish.image_url} alt={dish.name} loading="lazy" /> : <div className="own-dish-placeholder"><Utensils size={24} /></div>}<span className="food-tag"><ShieldCheck size={13} /> {t('approvedSeller')}</span><HygieneBadge t={t} status={getHygieneStatus(dish)} /></button><div className="food-card-body"><div className="cook-label"><ChefHat size={14} /> {dish.cook_name || t('cookName')}</div><button className="food-title" onClick={() => setSelectedDish(dish)}>{dish.name}</button><p>{dish.description}</p><div className="food-card-bottom"><strong>{money(dish.price)}</strong><button className="small-primary" onClick={() => { setSelectedDish(dish); setOrderDish(dish); setOrderSuccess(false); if (!user) setPage('auth'); }}><Plus size={16} /> {t('order')}</button></div><small className="portion-label">{t('availableLabel')}: {dish.portions_available}</small></div></article>)}</div> : <div className="empty-state"><span>🍲</span><h3>{t('noDishesYet')}</h3><p>{t('noResults')}</p></div>}
         </section>
         <section className="trust-strip"><div><ShieldCheck size={22} /><span><strong>{t('foodSafety')}</strong><small>{t('foodSafetyText')}</small></span></div><div><ShoppingBag size={22} /><span><strong>{t('paymentInfo')}</strong><small>{t('orderNotice')}</small></span></div></section>
+        <PhaseRoadmap t={t} open={phasesOpen} onToggle={setPhasesOpen} />
+        <PublicReviews t={t} reviews={reviews} />
       </>}
 
       {page === 'auth' && <section className="auth-layout"><div className="auth-story"><div className="brand-symbol large"><Leaf size={30} /></div><div className="eyebrow">{t('tagline')}</div><h1>{t('authWelcome')}</h1><p>{t('authText')}</p><div className="auth-feature"><ShieldCheck size={19} /> {t('privacyNote')}</div></div><div className="auth-card"><div className="auth-tabs"><button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); setError(''); }}>{t('signIn')}</button><button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); setError(''); }}>{t('signUp')}</button></div><h2>{authMode === 'signin' ? t('signIn') : t('signUp')}</h2><form onSubmit={handleAuth} className="form-stack">{authMode === 'signup' && <><label>{t('fullName')}<input name="displayName" required minLength="2" /></label><label>{t('role')}<select name="role"><option value="customer">{t('customer')}</option><option value="cook">{t('cook')}</option></select></label></>}<label>{t('email')}<input name="email" type="email" required placeholder={t('emailPlaceholder')} autoComplete="email" /></label><label>{t('password')}<input name="password" type="password" required minLength="8" placeholder={t('passwordHint')} autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} /></label><button className="primary-button full-width" disabled={busy}>{busy ? t('saving') : authMode === 'signin' ? t('signIn') : t('createAccount')} <ArrowRight size={17} /></button></form>
-          {!hasSupabase && <div className="preview-login"><div className="divider-label"><span /> {t('demoRole')} <span /></div><p>{t('localDemoAccount')}</p><div className="demo-role-buttons"><button onClick={() => { setDemoRole('customer'); setSession({ user: { id: 'local-customer', email: 'customer@local.test', user_metadata: { display_name: 'Preview customer' } } }); setProfile({ role: 'customer', display_name: 'Preview customer' }); changePage('discover'); }}>👤 {t('customer')}</button><button onClick={() => { setDemoRole('cook'); setSession({ user: { id: 'local-cook', email: 'cook@local.test', user_metadata: { display_name: 'Preview cook' } } }); setProfile({ role: 'cook', display_name: 'Preview cook' }); setMyApplication(null); changePage('cook'); }}>👩‍🍳 {t('cook')}</button><button onClick={() => { setDemoRole('admin'); setSession({ user: { id: 'local-admin', email: 'admin@local.test', user_metadata: { display_name: 'Preview admin' } } }); setProfile({ role: 'admin', display_name: 'Preview admin' }); changePage('admin'); }}>🛡️ {t('admin')}</button></div></div>}
-          <p className="auth-footnote">{hasSupabase ? t('adminSetup') : t('noAuthDemo')}</p></div></section>}
+          <p className="auth-footnote">{hasSupabase ? t('adminSetup') : t('setupText')}</p></div></section>}
 
-      {page === 'cook' && user && isCook && <CookDashboard t={t} user={user} profile={profile} application={myApplication} dishes={myDishes} orders={myOrders} busy={busy} onApplicationSubmit={submitApplication} onAddDish={addDish} onUpdateOrder={updateOrder} onError={setError} />}
-      {page === 'orders' && user && role === 'customer' && <CustomerOrders t={t} orders={myOrders} />}
-      {page === 'admin' && user && isAdmin && <AdminDashboard t={t} applications={applications} orders={allOrders} busy={busy} onReview={reviewApplication} onUpdateOrder={updateOrder} />}
+      {page === 'cook' && user && isCook && <CookDashboard t={t} user={user} profile={profile} application={myApplication} dishes={myDishes} orders={myOrders} hygieneSubmissions={hygieneSubmissions} reviews={reviews} notifications={notifications} editingDish={editingDish} setEditingDish={setEditingDish} busy={busy} onApplicationSubmit={submitApplication} onAddDish={addDish} onSubmitHygiene={submitHygieneUpdate} onUpdateOrder={updateOrder} onReadNotification={markNotificationRead} onError={setError} />}
+      {page === 'orders' && user && role === 'customer' && <CustomerOrders t={t} orders={myOrders} busy={busy} onConfirmReceived={confirmReceived} onSubmitReview={submitReview} notifications={notifications} onReadNotification={markNotificationRead} />}
+      {page === 'admin' && user && isAdmin && <AdminDashboard t={t} applications={applications} orders={allOrders} pendingDishes={pendingDishes} hygieneSubmissions={hygieneSubmissions} busy={busy} onReview={reviewApplication} onReviewDish={reviewDish} onReviewHygiene={reviewHygiene} onUpdateOrder={updateOrder} />}
       {page !== 'discover' && page !== 'auth' && !user && <section className="empty-state"><UserRound size={32} /><h3>{t('signIn')}</h3><p>{t('authText')}</p><button className="primary-button" onClick={() => changePage('auth')}>{t('signIn')}</button></section>}
       {user && ((page === 'admin' && !isAdmin) || (page === 'cook' && !isCook) || (page === 'orders' && role !== 'customer')) && <section className="empty-state"><ShieldCheck size={34} /><h3>{t('noPermission')}</h3><button className="primary-button" onClick={() => changePage('discover')}>{t('backHome')}</button></section>}
     </main>
 
     <footer className="site-footer"><div className="footer-brand"><span className="brand-symbol"><Leaf size={18} /></span><span><strong>mom's perisa</strong><small>{t('tagline')}</small></span></div><p>{t('introBody')}</p><small>© 2026 Mom’s Perisa · Version 1</small></footer>
 
-    {selectedDish && !orderDish && <DishDetails dish={selectedDish} t={t} onClose={() => setSelectedDish(null)} onOrder={() => { setOrderDish(selectedDish); setSelectedDish(null); setOrderSuccess(false); if (!user) setPage('auth'); }} />}
+    {selectedDish && !orderDish && <DishDetails dish={selectedDish} reviews={reviews} t={t} onClose={() => setSelectedDish(null)} onOrder={() => { setOrderDish(selectedDish); setSelectedDish(null); setOrderSuccess(false); if (!user) setPage('auth'); }} />}
     {orderDish && user && role === 'customer' && <OrderModal dish={orderDish} t={t} busy={busy} success={orderSuccess} onClose={() => { setOrderDish(null); setOrderSuccess(false); setError(''); }} onSubmit={submitOrder} />}
     {notice && <div className="toast"><CircleCheck size={18} /> {notice}</div>}
   </div>;
 }
 
+
+function getHygieneStatus(dish) {
+  const threeDays = 3 * 24 * 60 * 60 * 1000;
+  if (['pending','changes_requested'].includes(dish.hygiene_review_status)) {
+    if (!dish.hygiene_pending_since) return 'process';
+    return Date.now() - new Date(dish.hygiene_pending_since).getTime() <= threeDays ? 'process' : 'outdated';
+  }
+  if (!dish.hygiene_last_updated_at) return 'outdated';
+  return Date.now() - new Date(dish.hygiene_last_updated_at).getTime() <= threeDays ? 'updated' : 'outdated';
+}
+
+function HygieneBadge({ t, status }) {
+  return <span className={`hygiene-status-pill ${status}`}>{t(status === 'process' ? 'hygieneProcess' : status === 'updated' ? 'hygieneUpdated' : 'hygieneOutdated')}</span>;
+}
+
+function PhaseRoadmap({ t, open, onToggle }) {
+  const phases = [
+    { id: 1, title: t('phase1Title'), status: t('phase1Status'), summary: t('phase1Summary'), details: t('phase1Details') },
+    { id: 2, title: t('phase2Title'), status: t('phase2Status'), summary: t('phase2Summary'), details: t('phase2Details') },
+    { id: 3, title: t('phase3Title'), status: t('phase3Status'), summary: t('phase3Summary'), details: t('phase3Details') },
+    { id: 4, title: t('phase4Title'), status: t('phase4Status'), summary: t('phase4Summary'), details: t('phase4Details') },
+  ];
+  return <section className="phase-section"><div className="section-heading"><div><div className="eyebrow">{t('roadmapEyebrow')}</div><h2>{t('roadmapTitle')}</h2><p>{t('roadmapIntro')}</p></div></div><div className="phase-grid">{phases.map(phase => <article className={`phase-card ${phase.id === 1 ? 'phase-current' : ''}`} key={phase.id}><button className="phase-toggle" onClick={() => onToggle(open === phase.id ? null : phase.id)} aria-expanded={open === phase.id}><span className="phase-number">{phase.id}</span><span className="phase-heading-copy"><strong>{phase.title}</strong><small>{phase.status}</small></span><ChevronDown className={open === phase.id ? 'rotated' : ''} size={18}/></button><p>{phase.summary}</p>{open === phase.id && <div className="phase-details">{phase.details}</div>}</article>)}</div></section>;
+}
+
+function PublicReviews({ t, reviews }) {
+  const list = (reviews || []).filter(r => r.rating && r.comment);
+  if (!list.length) return null;
+  return <section className="reviews-section"><div className="section-heading"><div><div className="eyebrow">{t('communityReviews')}</div><h2>{t('customerReviews')}</h2></div></div><div className="review-card-grid">{list.slice(0, 6).map(r => <article className="public-review-card" key={r.id}><div className="review-stars">{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</div><p>{r.comment}</p><small>{r.profiles?.display_name || t('customer')} · {r.cook_profile?.display_name || ''}</small></article>)}</div></section>;
+}
+
 function SparklesIcon() { return <span className="sparkle-mark">✦</span>; }
 
-function DishDetails({ dish, t, onClose, onOrder }) {
-  return <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && onClose()}><section className="modal-card dish-detail-modal"><button className="modal-close" onClick={onClose} aria-label={t('close')}><X size={19} /></button><img className="detail-image" src={dish.image_url || 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=80'} alt={dish.name} /><div className="modal-content"><div className="cook-label"><ChefHat size={15} /> {dish.cook_name || t('cookName')}</div><h2>{dish.name}</h2><p>{dish.description}</p><div className="detail-info"><div><small>{t('price')}</small><strong>{money(dish.price)}</strong></div><div><small>{t('availableLabel')}</small><strong>{dish.portions_available}</strong></div></div><h4>{t('ingredients')}</h4><p>{dish.ingredients || t('allergenPrompt')}</p><p className="muted-note"><ShieldCheck size={15} /> {t('allergenPrompt')}</p><button className="primary-button full-width" onClick={onOrder}>{t('order')} <ArrowRight size={17} /></button></div></section></div>;
+function DishDetails({ dish, reviews, t, onClose, onOrder }) {
+  return <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && onClose()}><section className="modal-card dish-detail-modal"><button className="modal-close" onClick={onClose} aria-label={t('close')}><X size={19} /></button>{dish.image_url ? <img className="detail-image" src={dish.image_url} alt={dish.name} /> : <div className="detail-image detail-image-placeholder"><Utensils size={42} /></div>}<div className="modal-content"><div className="cook-label"><ChefHat size={15} /> {dish.cook_name || t('cookName')}</div><h2>{dish.name}</h2><p>{dish.description}</p><div className="detail-info"><div><small>{t('price')}</small><strong>{money(dish.price)}</strong></div><div><small>{t('availableLabel')}</small><strong>{dish.portions_available}</strong></div></div><h4>{t('ingredients')}</h4><p>{dish.ingredients || t('allergenPrompt')}</p><p className="muted-note"><ShieldCheck size={15} /> {t('allergenPrompt')}</p>{(reviews || []).filter(r => r.cook_id === dish.cook_id && r.rating && r.comment).length > 0 && <div className="dish-shop-reviews"><h4>{t('customerReviews')}</h4>{(reviews || []).filter(r => r.cook_id === dish.cook_id && r.rating && r.comment).slice(0,4).map(r => <article key={r.id}><div className="review-stars">{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</div><p>{r.comment}</p><small>{r.profiles?.display_name || t('customer')}</small></article>)}</div>}<button className="primary-button full-width" onClick={onOrder}>{t('order')} <ArrowRight size={17} /></button></div></section></div>;
 }
 
 function OrderModal({ dish, t, busy, success, onClose, onSubmit }) {
   return <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && onClose()}><section className="modal-card order-modal"><button className="modal-close" onClick={onClose} aria-label={t('close')}><X size={19} /></button>{success ? <div className="success-content"><span className="success-icon"><Check size={28} /></span><h2>{t('orderSent')}</h2><p>{t('orderSentText')}</p><button className="primary-button full-width" onClick={onClose}>{t('close')}</button></div> : <><div className="eyebrow">{t('order')}</div><h2>{dish.name}</h2><p className="muted-note">{t('orderInstructions')}</p><form onSubmit={onSubmit} className="form-stack"><label>{t('quantity')}<input name="quantity" type="number" min="1" max={dish.portions_available} defaultValue="1" required /></label><div className="form-two"><label>{t('preferredDate')}<input name="date" type="date" min={new Date().toISOString().slice(0,10)} required /></label><label>{t('preferredTime')}<input name="time" type="time" /></label></div><label>{t('collectionMethod')}<select name="fulfilment"><option value="pickup">{t('pickup')}</option><option value="arrange">{t('arrange')}</option></select></label><label>{t('deliveryNote')}<textarea name="note" rows="3" maxLength="500" /></label><div className="payment-note"><CircleAlert size={17} /><span>{t('externalPayment')}</span></div><button className="primary-button full-width" disabled={busy}>{busy ? t('saving') : t('confirmOrder')} · {money(dish.price)} <ArrowRight size={17} /></button></form></>}</section></div>;
 }
 
-function CookDashboard({ t, user, profile, application, dishes, orders, busy, onApplicationSubmit, onAddDish, onUpdateOrder, onError }) {
+function CookDashboard({ t, user, profile, application, dishes, orders, hygieneSubmissions, reviews, notifications, editingDish, setEditingDish, busy, onApplicationSubmit, onAddDish, onSubmitHygiene, onUpdateOrder, onReadNotification, onError }) {
   const [tab, setTab] = useState('application');
   const appStatus = application?.status || 'not_submitted';
   const statusText = appStatus === 'approved' ? t('approved') : appStatus === 'pending' ? t('underReview') : appStatus === 'changes_requested' ? t('needsChanges') : t('notSubmitted');
   const appApproved = appStatus === 'approved';
-  return <section className="dashboard-page"><div className="page-heading"><div><div className="eyebrow">{t('myDashboard')}</div><h1>{t('welcome')}</h1><p>{profile?.display_name || user.user_metadata?.display_name || user.email}</p></div><span className={`status-badge ${appStatus}`}>{statusText}</span></div>
+  return <section className="dashboard-page"><div className="page-heading"><div><div className="eyebrow">{t('myDashboard')}</div><h1>{t('welcome')}</h1><p>{profile?.display_name || user.user_metadata?.display_name || user.email}</p></div><span className={`status-badge ${appStatus}`}>{statusText}</span>{appApproved && <HygieneBadge t={t} status={getHygieneStatus(profile || {})}/>}</div>
     {!appApproved && <div className="notice-card"><ShieldCheck size={21} /><div><strong>{t('foodSafety')}</strong><p>{t('menuNeedsApproval')}</p></div></div>}
     {appApproved && <div className="notice-card success"><CircleCheck size={21} /><div><strong>{t('cookApprovedNotice')}</strong></div></div>}
+    {notifications?.length > 0 && <div className="content-card"><div className="card-heading"><h2>{t('notifications')}</h2><span className="count-pill">{notifications.filter(n => !n.read_at).length}</span></div><div className="notification-list">{notifications.slice(0,5).map(n => <button key={n.id} className={`notification-row ${n.read_at ? 'read' : ''}`} onClick={() => !n.read_at && onReadNotification(n)}><span className="notification-dot"/><span><strong>{n.title}</strong><small>{n.body}</small><small>{new Date(n.created_at).toLocaleString()}</small></span></button>)}</div></div>}
+    <div className="cook-finance-grid"><div className="stat-card"><span>{t('totalOrders')}</span><strong>{orders.length}</strong><small>{t('allTime')}</small></div><div className="stat-card"><span>{t('estimatedSales')}</span><strong>{money(orders.filter(o => ['handed_over','completed'].includes(o.status) && o.customer_received_confirmation !== false).reduce((sum,o) => sum + Number(o.total_amount || 0),0))}</strong><small>{t('externalPaymentCaveat')}</small></div><div className="stat-card"><span>{t('averageRating')}</span><strong>{reviews?.length ? (reviews.reduce((sum,r) => sum + Number(r.rating || 0),0)/reviews.length).toFixed(1) : '—'}</strong><small>{reviews?.length || 0} {t('reviews')}</small></div></div>
+    {dishes.length > 0 && <div className="content-card dish-demand-card"><div className="card-heading"><div><h2>{t('dishDemand')}</h2><p>{t('dishDemandHelp')}</p></div></div><div className="own-dish-list">{dishes.map(d => { const sold = orders.flatMap(o => o.order_items || []).filter(i => i.dish_id === d.id).reduce((sum,i) => sum + Number(i.quantity || 0),0); return <div className="own-dish" key={d.id}>{d.image_url ? <img src={d.image_url} alt=""/> : <div className="own-dish-placeholder"><Utensils size={18}/></div>}<div><strong>{d.name}</strong><small>{t('portionsSold')}: {sold} · {t('estimatedSales')}: {money(orders.filter(o => ['handed_over','completed'].includes(o.status) && o.customer_received_confirmation !== false).reduce((sum,o) => sum + (o.order_items || []).filter(i => i.dish_id === d.id).reduce((sub,i) => sub + Number(i.unit_price || 0) * Number(i.quantity || 0),0),0))}</small></div></div>; })}</div></div>}
     <div className="dashboard-tabs"><button className={tab === 'application' ? 'active' : ''} onClick={() => setTab('application')}><FileCheck2 size={16} /> {t('cookApplication')}</button><button className={tab === 'menu' ? 'active' : ''} onClick={() => setTab('menu')}><Utensils size={16} /> {t('menuManagement')}</button><button className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}><ClipboardList size={16} /> {t('ordersForCook')}</button></div>
-    {tab === 'application' && <div className="content-card"><div className="card-heading"><div><h2>{t('application')}</h2><p>{t('applicationHelp')}</p></div><span className={`status-badge ${appStatus}`}>{statusText}</span></div>{application?.rejection_reason && <div className="review-feedback"><strong>{t('rejectionReason')}</strong><p>{application.rejection_reason}</p><small>{t('resubmitHelp')}</small></div>}<form className="form-grid" onSubmit={onApplicationSubmit}><label className="span-two">{t('ssm')} *<input name="ssmNumber" required defaultValue={application?.ssm_number || ''} /></label><FileInput label={t('ssmDocument')} name="ssmFile" existing={application?.ssm_file_path} t={t} /><FileInput label={t('hygiene')} name="hygieneFile" existing={application?.hygiene_file_path} t={t} /><label className="span-two">{t('hygieneNotes')}<textarea name="hygieneNotes" rows="4" maxLength="1000" defaultValue={application?.hygiene_notes || ''} placeholder={t('photoPrivacy')} /></label><p className="form-help span-two">{t('supportedFiles')} · {t('photoPrivacy')} {t('termsNote')}</p><button className="primary-button span-two" disabled={busy || appStatus === 'pending' || appStatus === 'approved'}>{busy ? t('saving') : t('submitApplication')} <ArrowRight size={17} /></button></form><div className="safety-callout"><CircleAlert size={18} /><p>{t('foodSafetyText')}</p></div></div>}
-    {tab === 'menu' && <div className="menu-layout"><div className="content-card"><h2>{t('addDish')}</h2><p className="muted-note">{t('imageOptional')}</p><form onSubmit={onAddDish} className="form-stack"><label>{t('dishName')} *<input name="name" required maxLength="100" /></label><label>{t('description')} *<textarea name="description" rows="3" required maxLength="1000" /></label><label>{t('ingredients')}<textarea name="ingredients" rows="2" maxLength="1000" placeholder={t('ingredientsPlaceholder')} /></label><div className="form-two"><label>{t('price')} *<input name="price" type="number" min="0.50" step="0.10" required /></label><label>{t('available')} *<input name="portions" type="number" min="1" max="500" required defaultValue="5" /></label></div><label>{t('category')}<select name="category"><option value="rice">{t('rice')}</option><option value="mains">{t('mains')}</option><option value="desserts">{t('desserts')}</option><option value="vegetarian">{t('vegetarian')}</option></select></label><label>{t('imageUrl')}<input name="imageUrl" type="url" placeholder="https://…" /></label><button className="primary-button" disabled={busy || !appApproved}>{busy ? t('saving') : t('addDishAction')} <Plus size={17} /></button>{!appApproved && <small className="form-help">{t('submitApplicationFirst')}</small>}</form></div><div className="content-card"><div className="card-heading"><h2>{t('myDishes')}</h2><span className="count-pill">{dishes.length}</span></div>{dishes.length ? <div className="own-dish-list">{dishes.map(d => <div className="own-dish" key={d.id}>{d.image_url ? <img src={d.image_url} alt="" /> : <div className="own-dish-placeholder"><Utensils size={18} /></div>}<div><strong>{d.name}</strong><small>{money(d.price)} · {t('availableLabel')}: {d.portions_available}</small></div><span className={`status-badge ${d.status}`}>{d.status === 'approved' ? t('approved') : d.status === 'rejected' ? t('rejected') : t('underReview')}</span></div>)}</div> : <div className="mini-empty"><Utensils size={24} /><p>{t('noMyDishes')}</p></div>}</div></div>}
+    {tab === 'application' && <div className="content-card"><div className="card-heading"><div><h2>{t('application')}</h2><p>{t('applicationHelp')}</p></div><span className={`status-badge ${appStatus}`}>{statusText}</span></div>{application?.rejection_reason && <div className="review-feedback"><strong>{t('rejectionReason')}</strong><p>{application.rejection_reason}</p><small>{t('resubmitHelp')}</small></div>}<form className="form-grid" onSubmit={onApplicationSubmit}><label className="span-two">{t('ssm')} *<input name="ssmNumber" required defaultValue={application?.ssm_number || ''} /></label><FileInput label={t('ssmDocument')} name="ssmFile" existing={application?.ssm_file_path} t={t} /><FileInput label={t('hygiene')} name="hygieneFile" existing={application?.hygiene_file_path} t={t} accept="image/jpeg,image/png" helpKey="hygieneImageRules" /><label className="span-two">{t('hygieneNotes')}<textarea name="hygieneNotes" rows="4" maxLength="1000" defaultValue={application?.hygiene_notes || ''} placeholder={t('photoPrivacy')} /></label><p className="form-help span-two">{t('supportedFiles')} · {t('photoPrivacy')} {t('termsNote')}</p><button className="primary-button span-two" disabled={busy || appStatus === 'pending' || appStatus === 'approved'}>{busy ? t('saving') : t('submitApplication')} <ArrowRight size={17} /></button></form><div className="safety-callout"><CircleAlert size={18} /><p>{t('foodSafetyText')}</p></div></div>}
+    {tab === 'application' && appApproved && <div className="content-card hygiene-update-card"><div className="card-heading"><div><h2>{t('hygieneEveryThreeDays')}</h2><p>{t('hygieneUpdateHelp')}</p></div></div><form className="form-grid" onSubmit={onSubmitHygiene}><FileInput label={t('hygieneEvidence')} name="hygieneFile" t={t} accept="image/jpeg,image/png" helpKey="hygieneImageRules"/><label>{t('hygieneNotes')}<textarea name="notes" rows="3" maxLength="1000"/></label><button className="primary-button span-two" disabled={busy}>{busy ? t('saving') : t('submitHygieneUpdate')} <ArrowRight size={17}/></button></form>{hygieneSubmissions?.length > 0 && <div className="hygiene-history"><strong>{t('hygieneHistory')}</strong>{hygieneSubmissions.slice(0,3).map(h => <div className="hygiene-history-row" key={h.id}><span>{new Date(h.submitted_at).toLocaleString()}</span><span className={`hygiene-status-pill ${h.status}`}>{t(h.status) || h.status}</span>{h.review_note && <small>{h.review_note}</small>}</div>)}</div>}</div>}
+    {tab === 'menu' && <div className="menu-layout"><div className="content-card"><h2>{t(editingDish ? 'editDish' : 'addDish')}</h2><p className="muted-note">{t('imageOptional')}</p><form key={editingDish?.id || 'new-dish'} onSubmit={onAddDish} className="form-stack"><label>{t('dishName')} *<input name="name" required maxLength="100" defaultValue={editingDish?.name || ''} /></label><label>{t('description')} *<textarea name="description" rows="3" required maxLength="1000" defaultValue={editingDish?.description || ''} /></label><label>{t('ingredients')}<textarea name="ingredients" rows="2" maxLength="1000" defaultValue={editingDish?.ingredients || ''} placeholder={t('ingredientsPlaceholder')} /></label><div className="form-two"><label>{t('price')} *<input name="price" type="number" min="0.50" step="0.10" required defaultValue={editingDish?.price || ''} /></label><label>{t('available')} *<input name="portions" type="number" min="1" max="500" required defaultValue={editingDish?.portions_available || 5} /></label></div><label>{t('category')}<select name="category" defaultValue={editingDish?.category || 'mains'}><option value="rice">{t('rice')}</option><option value="mains">{t('mains')}</option><option value="desserts">{t('desserts')}</option><option value="vegetarian">{t('vegetarian')}</option></select></label><label>{t('foodImage')} *<input name="foodImage" type="file" accept="image/jpeg,image/png,image/webp"/><small className="form-help">{t('foodImageRules')}</small></label><label>{t('imageUrl')}<input name="imageUrl" type="url" placeholder="https://…" /></label><button className="primary-button" disabled={busy || !appApproved}>{busy ? t('saving') : t(editingDish ? 'saveChanges' : 'addDishAction')} <Plus size={17} /></button>{!appApproved && <small className="form-help">{t('submitApplicationFirst')}</small>}</form></div><div className="content-card"><div className="card-heading"><h2>{t('myDishes')}</h2><span className="count-pill">{dishes.length}</span></div>{dishes.length ? <div className="own-dish-list">{dishes.map(d => <div className="own-dish" key={d.id}>{d.image_url ? <img src={d.image_url} alt="" /> : <div className="own-dish-placeholder"><Utensils size={18} /></div>}<div><strong>{d.name}</strong><small>{money(d.price)} · {t('availableLabel')}: {d.portions_available}</small>{d.moderation_note && <small className="form-help">{t('rejectionReason')}: {d.moderation_note}</small>}</div><span className={`status-badge ${d.status}`}>{d.status === 'approved' ? t('approved') : d.status === 'rejected' ? t('rejected') : t('underReview')}</span><button className="outline-button" onClick={() => { setEditingDish(d); setTab('menu'); }} type="button">{t('editDish')}</button></div>)}</div> : <div className="mini-empty"><Utensils size={24} /><p>{t('noMyDishes')}</p></div>}</div></div>}
     {tab === 'orders' && <div className="content-card"><h2>{t('pendingOrders')}</h2>{orders.length ? <div className="table-wrap"><table><thead><tr><th>{t('customerName')}</th><th>{t('orders')}</th><th>{t('date')}</th><th>{t('status')}</th><th>{t('view')}</th></tr></thead><tbody>{orders.map(o => <tr key={o.id}><td>{o.customer_display_name || o.customer_name || o.customer_id}</td><td>{(o.order_items || []).map(i => `${i.quantity} × ${i.dish_name}`).join(', ')}</td><td>{o.preferred_date || new Date(o.created_at).toLocaleDateString()}</td><td><span className={`status-badge ${o.status}`}>{t(o.status) || o.status}</span></td><td><OrderActions order={o} t={t} onUpdateOrder={onUpdateOrder} /></td></tr>)}</tbody></table></div> : <div className="mini-empty"><PackageCheck size={26} /><p>{t('empty')}</p></div>}</div>}
   </section>;
 }
 
-function FileInput({ label, name, existing, t }) {
+function FileInput({ label, name, existing = null, t, accept = '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png', helpKey = 'supportedFiles' }) {
   const [fileName, setFileName] = useState('');
-  return <label className="file-field">{label} *<span className="file-drop"><Upload size={18} /><span>{fileName || (existing ? t('reupload') : t('selectFile'))}<small>{t('supportedFiles')}</small></span><input type="file" name={name} accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" onChange={e => setFileName(e.target.files?.[0]?.name || '')} /></span>{existing && <small className="form-help">{t('privacyNote')}</small>}</label>;
+  return <label className="file-field">{label} *<span className="file-drop"><Upload size={18} /><span>{fileName || (existing ? t('reupload') : t('selectFile'))}<small>{t(helpKey)}</small></span><input type="file" name={name} accept={accept} onChange={e => setFileName(e.target.files?.[0]?.name || '')} /></span>{existing && <small className="form-help">{t('privacyNote')}</small>}</label>;
 }
 
 function OrderActions({ order, t, onUpdateOrder }) {
-  if (order.status === 'completed' || order.status === 'cancelled' || order.status === 'rejected') return <span className="muted-note">—</span>;
-  return <div className="table-actions">{order.status === 'pending' && <><button className="icon-action positive" onClick={() => onUpdateOrder(order, 'accepted')} title={t('accept')}><Check size={15} /></button><button className="icon-action negative" onClick={() => onUpdateOrder(order, 'rejected')} title={t('decline')}><X size={15} /></button></>}{order.status === 'accepted' && <button className="icon-action positive" onClick={() => onUpdateOrder(order, 'completed')} title={t('markReady')}><PackageCheck size={15} /></button>}</div>;
+  if (['completed','cancelled','rejected'].includes(order.status)) return <span className="muted-note">—</span>;
+  return <div className="table-actions">
+    {order.status === 'pending' && <><button className="icon-action positive" onClick={() => onUpdateOrder(order,'accepted')} title={t('accept')}><Check size={15}/></button><button className="icon-action negative" onClick={() => onUpdateOrder(order,'rejected')} title={t('decline')}><X size={15}/></button></>}
+    {order.status === 'accepted' && <button className="outline-button" onClick={() => onUpdateOrder(order,'cooking')}>{t('startCooking')}</button>}
+    {order.status === 'cooking' && <button className="outline-button" onClick={() => onUpdateOrder(order,'ready')}><PackageCheck size={15}/>{t('markReady')}</button>}
+    {order.status === 'ready' && <button className="outline-button" onClick={() => onUpdateOrder(order,'handed_over')}>{t('markHandedOver')}</button>}
+  </div>;
 }
 
-function CustomerOrders({ t, orders }) {
-  return <section className="dashboard-page"><div className="page-heading"><div><div className="eyebrow">{t('myDashboard')}</div><h1>{t('orderHistory')}</h1><p>{t('orderInstructions')}</p></div></div><div className="content-card">{orders.length ? <div className="order-list">{orders.map(o => <article className="order-row" key={o.id}><div className="order-icon"><ShoppingBag size={20} /></div><div className="order-summary"><strong>{(o.order_items || []).map(i => `${i.quantity} × ${i.dish_name}`).join(', ') || 'Pre-order'}</strong><small>{t('orderReference')}: {String(o.id).slice(0, 12)} · {o.preferred_date || new Date(o.created_at).toLocaleDateString()}</small><small>{t('paymentInfo')}: {t('externalPayment')}</small></div><span className={`status-badge ${o.status}`}>{t(o.status) || o.status}</span><strong>{money(o.total_amount)}</strong></article>)}</div> : <div className="mini-empty"><ShoppingBag size={26} /><p>{t('noOrders')}</p></div>}</div></section>;
+function CustomerOrders({ t, orders, busy, onConfirmReceived, onSubmitReview, notifications, onReadNotification }) {
+  const [ratings, setRatings] = useState({});
+  const [comments, setComments] = useState({});
+  return <section className="dashboard-page"><div className="page-heading"><div><div className="eyebrow">{t('myDashboard')}</div><h1>{t('orderHistory')}</h1><p>{t('orderInstructions')}</p></div></div>
+    {notifications?.length > 0 && <div className="content-card"><div className="card-heading"><h2>{t('notifications')}</h2><span className="count-pill">{notifications.filter(n => !n.read_at).length}</span></div><div className="notification-list">{notifications.slice(0,8).map(n => <button key={n.id} className={`notification-row ${n.read_at ? 'read' : ''}`} onClick={() => !n.read_at && onReadNotification(n)}><span className="notification-dot"/><span><strong>{n.title}</strong><small>{n.body}</small><small>{new Date(n.created_at).toLocaleString()}</small></span></button>)}</div></div>}
+    <div className="content-card">{orders.length ? <div className="order-list">{orders.map(o => <article className="order-row customer-order-card" key={o.id}><div className="order-icon"><ShoppingBag size={20}/></div><div className="order-summary"><strong>{(o.order_items || []).map(i => `${i.quantity} × ${i.dish_name}`).join(', ') || 'Pre-order'}</strong><small>{t('orderReference')}: {String(o.id).slice(0,12)} · {o.preferred_date || new Date(o.created_at).toLocaleDateString()}</small><small>{t('paymentInfo')}: {t('externalPayment')}</small>
+      {o.status === 'handed_over' && o.customer_received_confirmation == null && <div className="receipt-confirm"><strong>{t('didYouReceive')}</strong><div className="review-actions"><button className="outline-button" disabled={busy} onClick={() => onConfirmReceived(o,true)}>{t('yesReceived')}</button><button className="danger-button" disabled={busy} onClick={() => onConfirmReceived(o,false)}>{t('notReceived')}</button></div></div>}
+      {o.customer_received_confirmation === false && <p className="review-feedback">{t('receiptIssueSent')}</p>}
+      {o.customer_received_confirmation === true && !o.reviews?.length && <div className="review-form"><strong>{t('leaveReview')}</strong><label>{t('rating')}<select value={ratings[o.id] || '5'} onChange={e => setRatings(old => ({...old,[o.id]:Number(e.target.value)}))}><option value="5">5 ★</option><option value="4">4 ★</option><option value="3">3 ★</option><option value="2">2 ★</option><option value="1">1 ★</option></select></label><label>{t('reviewComment')}<textarea rows="2" value={comments[o.id] || ''} onChange={e => setComments(old => ({...old,[o.id]:e.target.value}))} maxLength="1000"/></label><button className="primary-button" disabled={busy} onClick={() => onSubmitReview(o, ratings[o.id] || 5, comments[o.id] || '')}>{t('sendReview')}</button></div>}
+      {o.reviews?.length > 0 && <small>{t('reviewSent')}</small>}</div><span className={`status-badge ${o.status}`}>{t(o.status) || o.status}</span><strong>{money(o.total_amount)}</strong></article>)}</div> : <div className="mini-empty"><ShoppingBag size={26}/><p>{t('noOrders')}</p></div>}</div></section>;
 }
 
-function AdminDashboard({ t, applications, orders, busy, onReview, onUpdateOrder }) {
+function AdminDashboard({ t, applications, orders, pendingDishes, hygieneSubmissions, busy, onReview, onReviewDish, onReviewHygiene, onUpdateOrder }) {
   const [reasons, setReasons] = useState({});
   const pendingApps = applications.filter(a => a.status !== 'approved');
-  return <section className="dashboard-page"><div className="page-heading"><div><div className="eyebrow">{t('adminReview')}</div><h1>{t('sellerReview')}</h1><p>{t('reviewHelp')}</p></div><span className="count-pill">{pendingApps.length} {t('underReview')}</span></div><div className="admin-stats"><div className="stat-card"><span>{t('sellerReview')}</span><strong>{applications.length}</strong><small>{t('users')}</small></div><div className="stat-card"><span>{t('orders')}</span><strong>{orders.length}</strong><small>{t('customerOrders')}</small></div><div className="stat-card"><span>{t('underReview')}</span><strong>{pendingApps.length}</strong><small>{t('appReview')}</small></div></div><div className="content-card"><div className="card-heading"><div><h2>{t('sellerReview')}</h2><p>{t('privacyNote')}</p></div><ClipboardCheck size={22} /></div>{pendingApps.length ? <div className="application-list">{pendingApps.map(app => <article className="application-review-card" key={app.id}><div className="application-top"><div className="cook-avatar-large"><ChefHat size={22} /></div><div className="application-title"><h3>{app.profiles?.display_name || app.display_name || app.user_id}</h3><p>{t('ssm')}: {app.ssm_number}</p><small>{t('submittedAt')}: {new Date(app.created_at).toLocaleDateString()}</small></div><span className={`status-badge ${app.status}`}>{app.status === 'changes_requested' ? t('needsChanges') : t('underReview')}</span></div>{app.rejection_reason && <div className="review-feedback"><strong>{t('rejectionReason')}</strong><p>{app.rejection_reason}</p></div>}<div className="review-sections"><ReviewUnit title={t('ssmReview')} status={app.ssm_status} path={app.ssm_file_path} t={t} onAction={(action) => onReview(app, 'ssm', action, reasons[app.id] || '')} busy={busy} /><ReviewUnit title={t('hygieneReview')} status={app.hygiene_status} path={app.hygiene_file_path} notes={app.hygiene_notes} t={t} onAction={(action) => onReview(app, 'hygiene', action, reasons[app.id] || '')} busy={busy} /></div><label className="reason-input">{t('reasonPrompt')}<textarea rows="2" value={reasons[app.id] || ''} onChange={e => setReasons(old => ({ ...old, [app.id]: e.target.value }))} placeholder={t('requestReason')} /></label></article>)}</div> : <div className="mini-empty"><CircleCheck size={28} /><p>{t('noApplications')}</p></div>}</div><div className="content-card admin-orders"><div className="card-heading"><div><h2>{t('orders')}</h2><p>{t('orderNotice')}</p></div></div>{orders.length ? <div className="table-wrap"><table><thead><tr><th>{t('orderReference')}</th><th>{t('customerName')}</th><th>{t('date')}</th><th>{t('status')}</th><th>{t('price')}</th><th>{t('view')}</th></tr></thead><tbody>{orders.map(o => <tr key={o.id}><td>{String(o.id).slice(0, 12)}</td><td>{o.customer_display_name || o.customer_name || o.customer_id}</td><td>{o.preferred_date || new Date(o.created_at).toLocaleDateString()}</td><td><span className={`status-badge ${o.status}`}>{t(o.status) || o.status}</span></td><td>{money(o.total_amount)}</td><td><OrderActions order={o} t={t} onUpdateOrder={onUpdateOrder} /></td></tr>)}</tbody></table></div> : <div className="mini-empty"><ClipboardList size={24} /><p>{t('empty')}</p></div>}</div></section>;
+  return <section className="dashboard-page"><div className="page-heading"><div><div className="eyebrow">{t('adminReview')}</div><h1>{t('sellerReview')}</h1><p>{t('reviewHelp')}</p></div><span className="count-pill">{pendingApps.length} {t('underReview')}</span></div><div className="admin-stats"><div className="stat-card"><span>{t('sellerReview')}</span><strong>{applications.length}</strong><small>{t('users')}</small></div><div className="stat-card"><span>{t('orders')}</span><strong>{orders.length}</strong><small>{t('customerOrders')}</small></div><div className="stat-card"><span>{t('underReview')}</span><strong>{pendingApps.length}</strong><small>{t('appReview')}</small></div></div><div className="content-card"><div className="card-heading"><div><h2>{t('sellerReview')}</h2><p>{t('privacyNote')}</p></div><ClipboardCheck size={22} /></div>{pendingApps.length ? <div className="application-list">{pendingApps.map(app => <article className="application-review-card" key={app.id}><div className="application-top"><div className="cook-avatar-large"><ChefHat size={22} /></div><div className="application-title"><h3>{app.profiles?.display_name || app.display_name || app.user_id}</h3><p>{t('ssm')}: {app.ssm_number}</p><small>{t('submittedAt')}: {new Date(app.created_at).toLocaleDateString()}</small></div><span className={`status-badge ${app.status}`}>{app.status === 'changes_requested' ? t('needsChanges') : t('underReview')}</span></div>{app.rejection_reason && <div className="review-feedback"><strong>{t('rejectionReason')}</strong><p>{app.rejection_reason}</p></div>}<div className="review-sections"><ReviewUnit title={t('ssmReview')} status={app.ssm_status} path={app.ssm_file_path} t={t} onAction={(action) => onReview(app, 'ssm', action, reasons[app.id] || '')} busy={busy} /><ReviewUnit title={t('hygieneReview')} status={app.hygiene_status} path={app.hygiene_file_path} notes={app.hygiene_notes} t={t} onAction={(action) => onReview(app, 'hygiene', action, reasons[app.id] || '')} busy={busy} /></div><label className="reason-input">{t('reasonPrompt')}<textarea rows="2" value={reasons[app.id] || ''} onChange={e => setReasons(old => ({ ...old, [app.id]: e.target.value }))} placeholder={t('requestReason')} /></label></article>)}</div> : <div className="mini-empty"><CircleCheck size={28} /><p>{t('noApplications')}</p></div>}</div><div className="content-card"><div className="card-heading"><div><h2>{t('menuApprovalQueue')}</h2><p>{t('menuApprovalHelp')}</p></div><span className="count-pill">{pendingDishes.length}</span></div>{pendingDishes.length ? <div className="application-list">{pendingDishes.map(dish => <article className="application-review-card" key={dish.id}><div className="dish-review-layout">{dish.image_url ? <a href={dish.image_url} target="_blank" rel="noreferrer"><img src={dish.image_url} alt={dish.name}/></a> : <div className="own-dish-placeholder"><Utensils size={26}/></div>}<div className="application-title"><h3>{dish.name}</h3><p>{dish.profiles?.display_name || t('cookName')} · {money(dish.price)}</p><small>{dish.description}</small><small>{t('ingredients')}: {dish.ingredients || '—'}</small></div></div><div className="review-actions"><button className="outline-button" disabled={busy} onClick={() => onReviewDish(dish,'approve')}><Check size={15}/>{t('approve')}</button><button className="danger-button" disabled={busy} onClick={() => { const reason = window.prompt(t('reasonPrompt')); if (reason) onReviewDish(dish,'request',reason); }}><X size={15}/>{t('requestChanges')}</button></div></article>)}</div> : <div className="mini-empty"><Utensils size={24}/><p>{t('noPendingMenus')}</p></div>}</div><div className="content-card"><div className="card-heading"><div><h2>{t('hygieneQueue')}</h2><p>{t('hygieneQueueHelp')}</p></div><span className="count-pill">{(hygieneSubmissions || []).filter(h => h.status === 'pending').length}</span></div>{(hygieneSubmissions || []).filter(h => h.status === 'pending').length ? <div className="application-list">{hygieneSubmissions.filter(h => h.status === 'pending').map(h => <article className="application-review-card" key={h.id}><div className="application-top"><div className="cook-avatar-large"><ShieldCheck size={22}/></div><div className="application-title"><h3>{h.profiles?.display_name || h.cook_id}</h3><small>{t('submittedAt')}: {new Date(h.submitted_at).toLocaleString()}</small><p>{h.notes}</p></div></div><PrivateDocumentLink path={h.file_path} t={t}/><div className="review-actions"><button className="outline-button" disabled={busy} onClick={() => onReviewHygiene(h,'approve')}><Check size={15}/>{t('approve')}</button><button className="danger-button" disabled={busy} onClick={() => { const reason = window.prompt(t('reasonPrompt')); if (reason) onReviewHygiene(h,'request',reason); }}><X size={15}/>{t('requestChanges')}</button></div></article>)}</div> : <div className="mini-empty"><ShieldCheck size={24}/><p>{t('noPendingHygiene')}</p></div>}</div><div className="content-card admin-orders"><div className="card-heading"><div><h2>{t('orders')}</h2><p>{t('orderNotice')}</p></div></div>{orders.length ? <div className="table-wrap"><table><thead><tr><th>{t('orderReference')}</th><th>{t('customerName')}</th><th>{t('date')}</th><th>{t('status')}</th><th>{t('price')}</th><th>{t('view')}</th></tr></thead><tbody>{orders.map(o => <tr key={o.id}><td>{String(o.id).slice(0, 12)}</td><td>{o.customer_display_name || o.customer_name || o.customer_id}</td><td>{o.preferred_date || new Date(o.created_at).toLocaleDateString()}</td><td><span className={`status-badge ${o.status}`}>{t(o.status) || o.status}</span></td><td>{money(o.total_amount)}</td><td><OrderActions order={o} t={t} onUpdateOrder={onUpdateOrder} /></td></tr>)}</tbody></table></div> : <div className="mini-empty"><ClipboardList size={24} /><p>{t('empty')}</p></div>}</div></section>;
 }
 
 function PrivateDocumentLink({ path, t }) {
@@ -377,17 +496,20 @@ function PrivateDocumentLink({ path, t }) {
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     let alive = true;
-    if (!hasSupabase || !path || path.startsWith('demo/') || path.startsWith('local-preview/')) return () => { alive = false; };
+    if (!hasSupabase || !path) return () => { alive = false; };
     setLoading(true);
     supabase.storage.from('seller-private-documents').createSignedUrl(path, 300)
       .then(({ data, error }) => { if (alive && !error) setUrl(data?.signedUrl || ''); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [path]);
-  if (path.startsWith('demo/') || path.startsWith('local-preview/')) return <small className="document-path"><FileCheck2 size={14} /> {t('demoOnly')}</small>;
-  return <div className="document-path"><FileCheck2 size={14} />{url ? <a href={url} target="_blank" rel="noreferrer">{path.split('/').pop()}</a> : <span>{loading ? t('loading') : path.split('/').pop()}</span>}</div>;
+  if (!path) return null;
+  const fileName = path.split('/').pop();
+  const isImage = /\.(jpe?g|png|webp)$/i.test(fileName);
+  const isPdf = /\.pdf$/i.test(fileName);
+  return <div className="private-file-preview"><div className="document-path"><FileCheck2 size={14}/>{url ? <a href={url} target="_blank" rel="noreferrer">{fileName}</a> : <span>{loading ? t('loading') : fileName}</span>}</div>{url && isImage && <a href={url} target="_blank" rel="noreferrer"><img className="evidence-preview-image" src={url} alt={t('hygieneEvidence')}/></a>}{url && isPdf && <iframe className="evidence-preview-pdf" title={fileName} src={url}/>}</div>;
 }
 
-function ReviewUnit({ title, status, path, notes, t, onAction, busy }) {
+function ReviewUnit({ title, status, path, notes = '', t, onAction, busy }) {
   return <div className="review-unit"><div className="review-unit-heading"><div><strong>{title}</strong><small>{status === 'approved' ? t('approved') : status === 'changes_requested' ? t('needsChanges') : t('underReview')}</small></div><span className={`review-status-dot ${status}`} /></div>{notes && <p>{notes}</p>}{path && <PrivateDocumentLink path={path} t={t} />}<div className="review-actions"><button className="outline-button" disabled={busy} onClick={() => onAction('approve')}><Check size={15} /> {t('approve')}</button><button className="danger-button" disabled={busy} onClick={() => onAction('request')}><RefreshCw size={14} /> {t('requestChanges')}</button></div></div>;
 }
