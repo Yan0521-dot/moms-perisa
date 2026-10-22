@@ -720,8 +720,7 @@ export default function App() {
     </button>
   </span>
 </label><button className="primary-button full-width" disabled={busy}>{busy ? t('saving') : authMode === 'signin' ? t('signIn') : t('createAccount')} <ArrowRight size={17} /></button></form>
-          <p className="auth-footnote">{hasSupabase ? t('adminSetup') : t('setupText')}</p></div></section>}
-
+</div></section>}
       {page === 'cook' && user && isCook && <CookDashboard t={t} user={user} profile={profile} application={myApplication} dishes={myDishes} orders={myOrders} hygieneSubmissions={hygieneSubmissions} reviews={reviews} notifications={notifications} editingDish={editingDish} setEditingDish={setEditingDish} busy={busy} onApplicationSubmit={submitApplication} onAddDish={addDish} onSubmitHygiene={submitHygieneUpdate} onUpdateOrder={updateOrder} onReadNotification={markNotificationRead} onError={setError} onSaveKitchenProfile={saveKitchenProfile} />}
       {page === 'orders' && user && role === 'customer' && <CustomerOrders t={t} orders={myOrders} busy={busy} onConfirmReceived={confirmReceived} onSubmitReview={submitReview} notifications={notifications} onReadNotification={markNotificationRead} />}
       {page === 'admin' && user && isAdmin && <AdminDashboard t={t} applications={applications} orders={allOrders} pendingDishes={pendingDishes} hygieneSubmissions={hygieneSubmissions} busy={busy} onReview={reviewApplication} onReviewDish={reviewDish} onReviewHygiene={reviewHygiene} onUpdateOrder={updateOrder} />}
