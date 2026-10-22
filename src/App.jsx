@@ -536,7 +536,18 @@ export default function App() {
         {user && isCook && <button className={page === 'cook' ? 'active' : ''} onClick={() => changePage('cook')}>{t('myDashboard')}</button>}
         {user && role === 'customer' && <button className={page === 'orders' ? 'active' : ''} onClick={() => changePage('orders')}>{t('orderHistory')}</button>}
         {user && isAdmin && <button className={page === 'admin' ? 'active' : ''} onClick={() => changePage('admin')}>{t('adminReview')}</button>}
-        <button className={page === 'explore' ? 'active' : ''} onClick={() => changePage('explore')}>Explore More</button>
+        <PublicReviews t={t} reviews={reviews} />
+
+<section className="explore-more-cta">
+  <div>
+    <div className="eyebrow">{t('exploreCtaEyebrow')}</div>
+    <h2>{t('exploreCtaTitle')}</h2>
+    <p>{t('exploreCtaText')}</p>
+  </div>
+  <button className="primary-button" onClick={() => changePage('explore')}>
+    {t('exploreMore')} <ArrowRight size={17} />
+  </button>
+</section>
         {!user && <button onClick={() => { setAuthMode('signup'); changePage('auth'); }}>{t('becomeCook')}</button>}
       </nav>
       <div className="header-tools">
@@ -649,47 +660,53 @@ export default function App() {
         </section>
       </>}
 
-      {page === 'explore' && <section className="explore-page">
-        <div className="explore-hero">
-          <div className="eyebrow">THE HEART OF MOM’S PERISA</div>
-          <h1>Good food brings people together.</h1>
-          <p>We’re building a community that helps people discover home-cooked food and helps home cooks share what they make with care.</p>
-          <button className="secondary-button" onClick={() => changePage('discover')}>
-            <ArrowRight size={16} /> Back to food discovery
-          </button>
-        </div>
 
-        <div className="explore-info-grid">
-          <article className="explore-info-card">
-            <div className="eyebrow">OUR MISSION</div>
-            <h2>Making home-cooked food easier to discover.</h2>
-            <p>Our mission is to connect customers with home cooks through a welcoming, hygiene-conscious platform where homemade meals can find the people who will enjoy them.</p>
-          </article>
-          <article className="explore-info-card">
-            <div className="eyebrow">OUR VISION</div>
-            <h2>A community where home cooks can grow.</h2>
-            <p>We envision a trusted community where talented home cooks can reach more customers, grow their small food businesses, and share the comfort of homemade food.</p>
-          </article>
-        </div>
+{page === 'explore' && <section className="explore-page">
+  <div className="explore-hero">
+    <div className="eyebrow">{t('exploreHeroEyebrow')}</div>
+    <h1>{t('exploreHeroTitle')}</h1>
+    <p>{t('exploreHeroText')}</p>
+    <button className="secondary-button" onClick={() => changePage('discover')}>
+      <ArrowRight size={16} /> {t('exploreBackToFood')}
+    </button>
+  </div>
 
-        <section className="explore-story">
-          <div className="eyebrow">WHY WE STARTED</div>
-          <h2>A little idea with a lot of heart.</h2>
-          <p>Mom’s Perisa began with a simple idea: home-cooked food deserves a place to be discovered. Many home cooks put care and effort into their food, but reaching new customers online can be difficult. We want to help bring these cooks and customers together in one place.</p>
-          <p>Trust and hygiene matter just as much as convenience. That’s why we’re building Mom’s Perisa with food safety, clear information, and a community-first mindset at its heart.</p>
-        </section>
+  <div className="explore-info-grid">
+    <article className="explore-info-card">
+      <div className="eyebrow">{t('exploreMissionLabel')}</div>
+      <h2>{t('exploreMissionTitle')}</h2>
+      <p>{t('exploreMissionText')}</p>
+    </article>
 
-        <PhaseRoadmap t={t} open={phasesOpen} onToggle={setPhasesOpen} />
+    <article className="explore-info-card">
+      <div className="eyebrow">{t('exploreVisionLabel')}</div>
+      <h2>{t('exploreVisionTitle')}</h2>
+      <p>{t('exploreVisionText')}</p>
+    </article>
+  </div>
 
-        <section className="team-cta">
-          <div className="eyebrow">BUILD WITH US</div>
-          <h2>Help shape Mom’s Perisa.</h2>
-          <p>Interested in joining the Mom’s Perisa Team? We’d love to hear from people who want to help home cooks and local food communities grow.</p>
-          <a className="primary-button team-email-button" href="mailto:YOUR_EMAIL_HERE?subject=Joining%20the%20Mom%E2%80%99s%20Perisa%20Team">
-            Join Our Team <ArrowRight size={17} />
-          </a>
-        </section>
-      </section>}
+  <section className="explore-story">
+    <div className="eyebrow">{t('exploreStoryLabel')}</div>
+    <h2>{t('exploreStoryTitle')}</h2>
+    <p>{t('exploreStoryText1')}</p>
+    <p>{t('exploreStoryText2')}</p>
+  </section>
+
+  <PhaseRoadmap t={t} open={phasesOpen} onToggle={setPhasesOpen} />
+
+  <section className="team-cta">
+    <div className="eyebrow">{t('exploreTeamLabel')}</div>
+    <h2>{t('exploreTeamTitle')}</h2>
+    <p>{t('exploreTeamText')}</p>
+    <a
+      className="primary-button team-email-button"
+      href="mailto:momsperisasupport@gmail.com?subject=Joining%20the%20Mom%E2%80%99s%20Perisa%20Team"
+    >
+      {t('exploreJoinTeam')} <ArrowRight size={17} />
+    </a>
+  </section>
+</section>}
+     
 
       {page === 'auth' && <section className="auth-layout"><div className="auth-story"><div className="brand-symbol large"><Leaf size={30} /></div><div className="eyebrow">{t('tagline')}</div><h1>{t('authWelcome')}</h1><p>{t('authText')}</p><div className="auth-feature"><ShieldCheck size={19} /> {t('privacyNote')}</div></div><div className="auth-card"><div className="auth-tabs"><button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); setError(''); }}>{t('signIn')}</button><button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); setError(''); }}>{t('signUp')}</button></div><h2>{authMode === 'signin' ? t('signIn') : t('signUp')}</h2><form onSubmit={handleAuth} className="form-stack">{authMode === 'signup' && <><label>{t('fullName')}<input name="displayName" required minLength="2" /></label><label>{t('role')}<select name="role"><option value="customer">{t('customer')}</option><option value="cook">{t('cook')}</option></select></label></>}<label>{t('email')}<input name="email" type="email" required placeholder={t('emailPlaceholder')} autoComplete="email" /></label><label className="password-field">
   {t('password')}

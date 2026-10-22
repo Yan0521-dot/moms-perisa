@@ -141,6 +141,113 @@ Object.assign(extraTranslations.ta, {
   signInExpired: 'உங்கள் அமர்வு காலாவதியானது. மீண்டும் உள்நுழைந்து முன்பதிவு செய்யுங்கள்.'
 });
 
+const exploreTranslations = {
+  en: {
+    exploreMore: 'Explore More',
+    exploreCtaEyebrow: 'GET TO KNOW US',
+    exploreCtaTitle: 'There’s more to Mom’s Perisa',
+    exploreCtaText: 'Discover our mission, vision, story, and the journey we’re building with home cooks.',
+    exploreHeroEyebrow: 'THE HEART OF MOM’S PERISA',
+    exploreHeroTitle: 'Good food brings people together.',
+    exploreHeroText: 'We’re building a community that helps people discover home-cooked food and helps home cooks share what they make with care.',
+    exploreBackToFood: 'Back to food discovery',
+    exploreMissionLabel: 'OUR MISSION',
+    exploreMissionTitle: 'Making home-cooked food easier to discover.',
+    exploreMissionText: 'Our mission is to connect customers with home cooks through a welcoming, hygiene-conscious platform where homemade meals can find the people who will enjoy them.',
+    exploreVisionLabel: 'OUR VISION',
+    exploreVisionTitle: 'A community where home cooks can grow.',
+    exploreVisionText: 'We envision a trusted community where talented home cooks can reach more customers, grow their small food businesses, and share the comfort of homemade food.',
+    exploreStoryLabel: 'WHY WE STARTED',
+    exploreStoryTitle: 'A little idea with a lot of heart.',
+    exploreStoryText1: 'Mom’s Perisa began with a simple idea: home-cooked food deserves a place to be discovered. Many home cooks put care and effort into their food, but reaching new customers online can be difficult. We want to help bring these cooks and customers together in one place.',
+    exploreStoryText2: 'Trust and hygiene matter just as much as convenience. That’s why we’re building Mom’s Perisa with food safety, clear information, and a community-first mindset at its heart.',
+    exploreTeamLabel: 'BUILD WITH US',
+    exploreTeamTitle: 'Help shape Mom’s Perisa.',
+    exploreTeamText: 'Interested in joining the Mom’s Perisa Team? We’d love to hear from people who want to help home cooks and local food communities grow.',
+    exploreJoinTeam: 'Join Our Team'
+  },
+
+  ms: {
+    exploreMore: 'Terokai Lagi',
+    exploreCtaEyebrow: 'KENALI KAMI',
+    exploreCtaTitle: 'Mom’s Perisa mempunyai lebih banyak untuk diterokai',
+    exploreCtaText: 'Kenali misi, visi, kisah dan perjalanan kami bersama tukang masak dari rumah.',
+    exploreHeroEyebrow: 'JIWA MOM’S PERISA',
+    exploreHeroTitle: 'Makanan yang enak menyatukan kita.',
+    exploreHeroText: 'Kami membina komuniti yang membantu orang ramai menemui makanan masakan rumah serta membantu tukang masak berkongsi hidangan mereka dengan penuh perhatian.',
+    exploreBackToFood: 'Kembali mencari makanan',
+    exploreMissionLabel: 'MISI KAMI',
+    exploreMissionTitle: 'Memudahkan orang ramai menemui makanan masakan rumah.',
+    exploreMissionText: 'Misi kami adalah untuk menghubungkan pelanggan dengan tukang masak dari rumah melalui platform yang mesra dan mengutamakan kebersihan, supaya hidangan buatan sendiri dapat dinikmati oleh lebih ramai orang.',
+    exploreVisionLabel: 'VISI KAMI',
+    exploreVisionTitle: 'Komuniti yang membantu tukang masak dari rumah berkembang.',
+    exploreVisionText: 'Kami membayangkan sebuah komuniti yang dipercayai, tempat tukang masak berbakat dapat menjangkau lebih ramai pelanggan, mengembangkan perniagaan makanan kecil mereka dan berkongsi kehangatan masakan rumah.',
+    exploreStoryLabel: 'MENGAPA KAMI BERMULA',
+    exploreStoryTitle: 'Idea kecil yang lahir daripada keprihatinan.',
+    exploreStoryText1: 'Mom’s Perisa bermula dengan idea mudah: makanan masakan rumah wajar mendapat tempat untuk ditemui. Ramai tukang masak menyediakan makanan dengan penuh usaha dan perhatian, tetapi sukar untuk menjangkau pelanggan baharu dalam talian. Kami mahu menyatukan tukang masak dan pelanggan di satu tempat.',
+    exploreStoryText2: 'Kepercayaan dan kebersihan sama penting dengan kemudahan. Sebab itulah Mom’s Perisa dibina dengan mengutamakan keselamatan makanan, maklumat yang jelas dan semangat komuniti.',
+    exploreTeamLabel: 'BINA BERSAMA KAMI',
+    exploreTeamTitle: 'Bantu membentuk masa depan Mom’s Perisa.',
+    exploreTeamText: 'Berminat untuk menyertai pasukan Mom’s Perisa? Kami ingin mendengar daripada mereka yang mahu membantu tukang masak dari rumah dan komuniti makanan tempatan berkembang.',
+    exploreJoinTeam: 'Sertai Pasukan Kami'
+  },
+
+  zh: {
+    exploreMore: '探索更多',
+    exploreCtaEyebrow: '认识我们',
+    exploreCtaTitle: 'Mom’s Perisa 还有更多精彩内容',
+    exploreCtaText: '了解我们的使命、愿景、故事，以及我们与家庭厨师共同打造的未来。',
+    exploreHeroEyebrow: 'Mom’s Perisa 的初心',
+    exploreHeroTitle: '美食让人们彼此靠近。',
+    exploreHeroText: '我们正在打造一个社区，让大家发现家常美食，也帮助家庭厨师分享用心制作的料理。',
+    exploreBackToFood: '返回美食探索',
+    exploreMissionLabel: '我们的使命',
+    exploreMissionTitle: '让家常美食更容易被发现。',
+    exploreMissionText: '我们的使命是通过友好且重视卫生的平台连接顾客与家庭厨师，让更多人有机会品尝用心制作的家常菜。',
+    exploreVisionLabel: '我们的愿景',
+    exploreVisionTitle: '让家庭厨师共同成长的社区。',
+    exploreVisionText: '我们希望建立一个值得信赖的社区，让有才华的家庭厨师接触更多顾客、发展小型餐饮生意，并分享家常美食带来的温暖。',
+    exploreStoryLabel: '我们的初心',
+    exploreStoryTitle: '一个充满温度的小小想法。',
+    exploreStoryText1: 'Mom’s Perisa 源于一个简单的想法：家常美食值得被更多人发现。许多家庭厨师用心准备料理，却很难通过网络接触新顾客。我们希望让厨师与顾客能够在同一个平台相遇。',
+    exploreStoryText2: '信任与卫生和便利同样重要。因此，我们致力于将食品安全、清晰的信息和以社区为先的理念融入 Mom’s Perisa。',
+    exploreTeamLabel: '与我们一起打造',
+    exploreTeamTitle: '一起塑造 Mom’s Perisa 的未来。',
+    exploreTeamText: '想加入 Mom’s Perisa 团队吗？如果您希望帮助家庭厨师和本地美食社区成长，我们期待听到您的想法。',
+    exploreJoinTeam: '加入我们的团队'
+  },
+
+  ta: {
+    exploreMore: 'மேலும் அறிக',
+    exploreCtaEyebrow: 'எங்களைப் பற்றி அறியுங்கள்',
+    exploreCtaTitle: 'Mom’s Perisa-வில் இன்னும் பல உள்ளன',
+    exploreCtaText: 'எங்கள் நோக்கம், தொலைநோக்கு, தொடக்கக் கதை மற்றும் வீட்டு சமையலர்களுடன் இணைந்து உருவாக்கும் பயணத்தை அறியுங்கள்.',
+    exploreHeroEyebrow: 'MOM’S PERISA-வின் இதயம்',
+    exploreHeroTitle: 'நல்ல உணவு மக்களை ஒன்றிணைக்கிறது.',
+    exploreHeroText: 'வீட்டுச் சமையலைக் கண்டறிய மக்களுக்கு உதவும் சமூகத்தையும், வீட்டு சமையலர்கள் அன்புடன் தயாரிக்கும் உணவைப் பகிர உதவும் தளத்தையும் உருவாக்குகிறோம்.',
+    exploreBackToFood: 'உணவுகளைப் பார்ப்பதற்குத் திரும்பு',
+    exploreMissionLabel: 'எங்கள் நோக்கம்',
+    exploreMissionTitle: 'வீட்டுச் சமையலை எளிதாகக் கண்டறிய உதவுதல்.',
+    exploreMissionText: 'வீட்டில் தயாரிக்கப்படும் உணவுகளை விரும்பும் மக்களுடன் இணைக்க, நட்பான மற்றும் சுகாதாரத்திற்கு முக்கியத்துவம் அளிக்கும் தளத்தின் மூலம் வாடிக்கையாளர்களையும் வீட்டு சமையலர்களையும் ஒன்றிணைப்பதே எங்கள் நோக்கம்.',
+    exploreVisionLabel: 'எங்கள் தொலைநோக்கு',
+    exploreVisionTitle: 'வீட்டு சமையலர்கள் வளர உதவும் சமூகம்.',
+    exploreVisionText: 'திறமையான வீட்டு சமையலர்கள் அதிக வாடிக்கையாளர்களை அடையவும், தங்கள் சிறு உணவு வணிகத்தை வளர்க்கவும், வீட்டுச் சமையலின் அன்பையும் ஆறுதலையும் பகிரவும் உதவும் நம்பகமான சமூகத்தை உருவாக்க விரும்புகிறோம்.',
+    exploreStoryLabel: 'நாங்கள் ஏன் தொடங்கினோம்',
+    exploreStoryTitle: 'அன்பு நிறைந்த ஒரு சிறிய யோசனை.',
+    exploreStoryText1: 'Mom’s Perisa ஒரு எளிய யோசனையிலிருந்து தொடங்கியது: வீட்டுச் சமையல் உணவுகள் மற்றவர்களால் கண்டறியப்படுவதற்கான வாய்ப்பைப் பெற வேண்டும். பல வீட்டு சமையலர்கள் அக்கறையுடன் உணவு தயாரித்தாலும், இணையத்தில் புதிய வாடிக்கையாளர்களை அடைவது கடினமாக இருக்கலாம். சமையலர்களையும் வாடிக்கையாளர்களையும் ஒரே இடத்தில் இணைக்க விரும்புகிறோம்.',
+    exploreStoryText2: 'வசதியைப் போலவே நம்பிக்கையும் சுகாதாரமும் முக்கியம். அதனால்தான் உணவுப் பாதுகாப்பு, தெளிவான தகவல்கள் மற்றும் சமூகத்திற்கு முன்னுரிமை அளிக்கும் அணுகுமுறையுடன் Mom’s Perisa-வை உருவாக்குகிறோம்.',
+    exploreTeamLabel: 'எங்களுடன் இணைந்து உருவாக்குங்கள்',
+    exploreTeamTitle: 'Mom’s Perisa-வை வடிவமைக்க உதவுங்கள்.',
+    exploreTeamText: 'Mom’s Perisa குழுவில் சேர விரும்புகிறீர்களா? வீட்டு சமையலர்களும் உள்ளூர் உணவு சமூகங்களும் வளர உதவ விரும்புபவர்களிடமிருந்து கேட்க ஆவலாக உள்ளோம்.',
+    exploreJoinTeam: 'எங்கள் குழுவில் சேருங்கள்'
+  }
+};
+
+Object.assign(extraTranslations.en, exploreTranslations.en);
+Object.assign(extraTranslations.ms, exploreTranslations.ms);
+Object.assign(extraTranslations.zh, exploreTranslations.zh);
+Object.assign(extraTranslations.ta, exploreTranslations.ta);
+
 export const dictionaries = { en, ms, zh, ta };
 export function translate(lang, key) {
   return extraTranslations[lang]?.[key] ?? dictionaries[lang]?.[key] ?? extraTranslations.en[key] ?? en[key] ?? key;
