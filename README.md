@@ -1,65 +1,73 @@
-# Mom's Perisa — Version 1
+# Mom's Perisa — Phase 1 website
 
-Responsive React + Vite website for a home-cooked food pre-order marketplace. Version 1 includes:
+Mom's Perisa is a React + Vite home-cooked food marketplace. This version keeps the existing visual design and uses Supabase for real accounts and shared data. It intentionally does not show sample dishes or pretend that local browser data is real marketplace data.
 
-- English, Bahasa Melayu, Simplified Chinese, and Tamil interface options.
-- Light and dark themes.
-- Customer signup/login, browsing approved menus, and pre-order requests.
-- Cook signup/login, SSM and kitchen-hygiene evidence submission, admin review feedback, and dish listing submissions.
-- Admin review of SSM and kitchen hygiene as separate checks, with approve/request-changes actions.
-- Order status workflow. No online payment is collected in V1; payment is arranged directly between the customer and cook.
-- Supabase Auth, Postgres, and private Storage integration.
+## Included in this update
 
-## 1. Try the interface locally without Supabase
+- The existing light/dark theme and English, Bahasa Melayu, Simplified Chinese, and Tamil language selector.
+- A clickable roadmap for Phase 1 through Phase 4.
+- Public menus populated only from approved, available dishes in Supabase. Empty menus stay empty; there are no fake sample listings.
+- Customer and cook sign-up/sign-in through Supabase Auth. Public registration cannot create an admin account.
+- Private cook SSM documents and kitchen evidence, visible to the cook and admin through signed file links and previews.
+- Separate admin queues for cook applications, menu submissions, and recurring kitchen-hygiene submissions.
+- Menu photo upload and admin approval before a dish is public. Editing a dish sends it back for review.
+- Order workflow: pending → accepted → cooking → ready → handed over → customer receipt confirmation.
+- Database-generated notifications for new orders, order-status changes, cook verification changes, menu edits, and receipt issues. The UI polls for updates while signed in.
+- Customer reviews after receipt is confirmed, with public review cards linked to the cook.
+- Three-day kitchen-hygiene status: yellow while a recent submission is being reviewed, green after approval within three days, and red when no approved update is recent or a review has been overdue for more than three days.
+- Cook dashboard totals for order count, estimated order value handed over, and average rating.
 
-Requires Node.js 18+ and npm.
+## 1. Run locally
 
 ```bash
 npm install
-npm run dev
+cp .env.example .env.local
 ```
 
-Open the Vite URL (usually `http://localhost:5173`). Without `.env.local`, the app runs in **local preview mode** with sample food and demo role buttons. Preview data is saved only in this browser and is not shared or secure; **do not upload real SSM documents or real personal information in preview mode**.
+Fill `.env.local` with the Supabase project URL and public anon/publishable key:
 
-## 2. Connect Supabase for real accounts/data
+```env
+VITE_SUPABASE_URL=https://YOUR-PROJECT-ID.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
+```
 
-1. Create a Supabase project.
-2. In Supabase **SQL Editor**, run `supabase/schema.sql`.
-3. Copy `.env.example` to `.env.local` in the project root.
-4. Fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (the publishable/anon key from Project Settings → API).
-5. In Supabase Auth settings, configure your local redirect URL, for example `http://localhost:5173/**`, and your production Vercel URL later. For a simpler test, email confirmation may be temporarily disabled in Supabase Auth, but turn on suitable confirmation for production.
-6. Restart Vite after changing environment variables:
+Never place the Supabase `service_role` or secret key in a frontend environment variable.
+
+Then start Vite:
 
 ```bash
 npm run dev
 ```
 
-Do **not** use a Supabase `service_role` key in this frontend project.
+## 2. Set up Supabase
 
-### Create an admin
+1. Open the Supabase SQL Editor.
+2. Run `supabase/schema.sql` first.
+3. Run `supabase/phase1_workflows.sql` second.
+4. In Supabase Storage, confirm the `seller-private-documents` bucket is private and `food-images` is public. The SQL creates/configures these buckets and their policies in the base schema.
+5. Configure Supabase Auth email confirmation and allowed redirect URLs for local development and the production site.
+6. Create your first admin account through normal sign-up as a customer, then use the SQL Editor as project owner to promote the trusted account:
 
-1. Register a normal account through the app.
-2. In Supabase SQL Editor, run the admin bootstrap statement at the bottom of `supabase/schema.sql`, replacing `YOUR-ADMIN-EMAIL` with your exact account email.
-3. Sign out and sign back in to refresh the account role.
+```sql
+update public.profiles
+set role = 'admin'
+where id = 'PASTE-THE-TRUSTED-USER-UUID-HERE';
+```
 
-Admin role is deliberately not available in public registration.
+Do not expose admin role selection on public sign-up. The UUID should be copied from the trusted account in Supabase Auth.
 
-## 3. Test the production build locally
+## Important operational notes
+
+- SSM registration alone is not a complete food-safety certification. Follow applicable Malaysian food-handler, premises, local-authority, and other legal requirements.
+- SSM files and kitchen hygiene evidence are private. Do not make the `seller-private-documents` bucket public.
+- Version 1 payments are arranged directly between the customer and cook. The cook dashboard reports estimated order value, not verified cash received or accounting profit.
+- Browser notifications are database-backed and refresh while the user is signed in. Email/SMS/push notifications require a separate provider and server-side integration.
+- The three-day hygiene status is a display and review workflow; it does not independently verify kitchen safety.
+
+## 3. Build
 
 ```bash
 npm run build
-npm run preview
 ```
 
-## Important V1 limitations
-
-- There is no online payment, escrow, automatic payout, or integrated rider service.
-- Customers submit pre-order requests; cooks accept or reject them.
-- SSM registration and platform checks do not replace applicable Malaysian food handling, food premises, local authority, or other compliance requirements.
-- Supabase Storage is configured for private seller evidence. Before public launch, verify every RLS policy against real test accounts, add a privacy notice and terms, and test the complete approval/order workflow.
-- Menu photos currently use an optional image URL; a future iteration can add a dedicated image uploader.
-- Translation dictionaries cover the primary interface and common workflows; review all wording with fluent speakers before public launch.
-
-## Deployment
-
-Deploy the Vite app to Vercel after the local build and Supabase tests pass. Add the same two `VITE_SUPABASE_*` environment variables in Vercel Project Settings → Environment Variables, then redeploy. Never add secrets to Git.
+The production output is `dist/`.

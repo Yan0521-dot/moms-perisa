@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, Bell, ChefHat, Check, Eye, EyeOff, ChevronDown, CircleAlert, ClipboardCheck, Clock3,
+  ArrowRight, Bell, ChefHat, Check, ChevronDown, CircleAlert, ClipboardCheck, Clock3,
   FileCheck2, Globe2, Heart, Languages, Leaf, LogIn, LogOut, Menu as MenuIcon,
   Moon, PackageCheck, Plus, Search, ShieldCheck, ShoppingBag, Sun, Utensils,
   X, CircleCheck, UserRound, Upload, ClipboardList, RefreshCw, Trash2
@@ -16,7 +16,6 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [authMode, setAuthMode] = useState('signin');
-  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -38,27 +37,24 @@ export default function App() {
   const [allOrders, setAllOrders] = useState([]);
   const [mobileNav, setMobileNav] = useState(false);
   const [selectedDish, setSelectedDish] = useState(null);
+  const [selectedKitchen, setSelectedKitchen] = useState(null);
   const [orderDish, setOrderDish] = useState(null);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [orderError, setOrderError] = useState('');
+  const [profileReady, setProfileReady] = useState(!hasSupabase);
 
   const t = useCallback((key) => translate(lang, key), [lang]);
   const user = session?.user || null;
   const role = hasSupabase ? (profile?.role || null) : null;
   const isAdmin = role === 'admin';
   const isCook = role === 'cook';
-
-  useEffect(() => {
-      if (!user || !profile?.role || page !== 'auth') return;
-
-      if (profile.role === 'admin') {
-        setPage('admin');
-    } else if (profile.role === 'cook') {
-       setPage('cook');
-    } else if (profile.role === 'customer') {
-       setPage('orders');
-    }
-  }, [user, profile?.role, page]);
-
+  // The order sheet is only useful for customers. Every other account type gets an
+  // explicit explanation instead of a button that silently does nothing.
+  const orderBlockReason = !profileReady ? null
+    : role === 'cook' ? t('cookCannotOrder')
+      : role === 'admin' ? t('adminCannotOrder')
+        : role === 'customer' ? null
+          : t('profileMissingHelp');
 
   useEffect(() => { localStorage.setItem('mp-language', lang); document.documentElement.lang = lang; }, [lang]);
   useEffect(() => { localStorage.setItem('mp-theme', theme); document.documentElement.dataset.theme = theme; }, [theme]);
@@ -75,10 +71,22 @@ export default function App() {
     if (!hasSupabase || !user) {
       setMyApplication(null); setMyDishes([]); setMyOrders([]); setAllOrders([]);
       setApplications([]); setPendingDishes([]); setHygieneSubmissions([]); setNotifications([]); setReviews([]);
+      setProfile(null); setProfileReady(true);
       return;
     }
-    const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    let { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    if (!p) {
+      // Accounts created before the handle_new_user() trigger existed have no profile
+      // row. Without it the app cannot tell whether this is a customer, so ordering and
+      // the dashboards silently break. ensure_my_profile() repairs the signed-in user.
+      const { error: ensureError } = await supabase.rpc('ensure_my_profile');
+      if (!ensureError) {
+        const { data: retried } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+        p = retried || null;
+      }
+    }
     setProfile(p || null);
+    setProfileReady(true);
     if (p?.role === 'cook') {
       const { data: app } = await supabase.from('cook_applications').select('*').eq('user_id', user.id).maybeSingle();
       setMyApplication(app || null);
@@ -125,12 +133,39 @@ export default function App() {
     return () => window.clearInterval(refreshTimer);
   }, [user?.id, refreshData]);
 
+  // Live updates: a cook sees a new pre-order immediately instead of waiting for the
+  // 15-second poll, and a customer sees status changes without refreshing the page.
+  // Supabase only delivers these events when the rows pass RLS, so this is safe.
+  useEffect(() => {
+    if (!hasSupabase || !user) return;
+    let channel;
+    try {
+      channel = supabase
+        .channel(`momperisa-live-${user.id}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { refreshData(); })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${user.id}` }, () => { refreshData(); })
+        .subscribe();
+    } catch (e) { channel = null; }
+    return () => { if (channel) supabase.removeChannel(channel); };
+  }, [user?.id, refreshData]);
+
   useEffect(() => {
     let active = true;
     async function loadPublicDishes() {
       if (!hasSupabase) return;
-      const { data, error: queryError } = await supabase.from('dishes').select('*, profiles!dishes_cook_id_fkey(display_name,hygiene_review_status,hygiene_last_updated_at,hygiene_pending_since)').eq('status', 'approved').eq('available', true).gt('portions_available', 0).order('created_at', { ascending: false });
-      if (active && !queryError) setDishes((data || []).map(d => ({ ...d, cook_name: d.profiles?.display_name || 'Home cook', hygiene_review_status: d.profiles?.hygiene_review_status, hygiene_last_updated_at: d.profiles?.hygiene_last_updated_at, hygiene_pending_since: d.profiles?.hygiene_pending_since })));
+      const { data, error: queryError } = await supabase.from('dishes').select('*, profiles!dishes_cook_id_fkey(display_name,kitchen_name,kitchen_image_url,kitchen_location,kitchen_description,hygiene_review_status,hygiene_last_updated_at,hygiene_pending_since)').eq('status', 'approved').eq('available', true).gt('portions_available', 0).order('created_at', { ascending: false });
+      if (active && !queryError) {
+  setDishes((data || []).map(d => ({
+    ...d,
+    cook_name: d.profiles?.kitchen_name || d.profiles?.display_name || 'Home cook',
+    kitchen_image_url: d.profiles?.kitchen_image_url || null,
+    kitchen_location: d.profiles?.kitchen_location || null,
+    kitchen_description: d.profiles?.kitchen_description || null,
+    hygiene_review_status: d.profiles?.hygiene_review_status,
+    hygiene_last_updated_at: d.profiles?.hygiene_last_updated_at,
+    hygiene_pending_since: d.profiles?.hygiene_pending_since
+  })));
+}
       const { data: publicReviews } = await supabase.from('reviews').select('*, profiles!reviews_customer_id_fkey(display_name), cook_profile:profiles!reviews_cook_id_fkey(display_name)').order('created_at', { ascending: false }).limit(100);
       if (active) setReviews(publicReviews || []);
     }
@@ -235,29 +270,158 @@ export default function App() {
     finally { setBusy(false); }
   }
 
-  async function submitOrder(event) {
-    event.preventDefault(); if (!orderDish) return;
-    const form = new FormData(event.currentTarget); const quantity = Number(form.get('quantity'));
-    if (!form.get('date')) { setError(t('dateRequired')); return; }
-    setBusy(true); setError('');
-    const orderPayload = { customer_id: user.id, cook_id: orderDish.cook_id, preferred_date: String(form.get('date')), preferred_time: String(form.get('time') || ''), fulfilment_method: String(form.get('fulfilment') || 'pickup'), customer_note: String(form.get('note') || '').trim(), status: 'pending', payment_status: 'external', total_amount: orderDish.price * quantity };
+
+
+  async function saveKitchenProfile(event) {
+    event.preventDefault();
+    if (!hasSupabase || !user) {
+      setError(t('setupText'));
+      return;
+    }
+
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const kitchenName = String(form.get('kitchenName') || '').trim();
+    const kitchenLocation = String(form.get('kitchenLocation') || '').trim();
+    const kitchenDescription = String(form.get('kitchenDescription') || '').trim();
+    const kitchenImage = form.get('kitchenImage');
+
+    if (!kitchenName) {
+      setError('Please enter a kitchen name.');
+      return;
+    }
+
+    if (kitchenDescription.length > 500) {
+      setError('Kitchen description must be 500 characters or fewer.');
+      return;
+    }
+
+    setBusy(true);
+    setError('');
+
     try {
-      if (!hasSupabase) throw new Error(t('setupText'));
-      {
-        const { error: orderError } = await supabase.rpc('create_preorder', {
-          p_cook_id: orderDish.cook_id,
-          p_dish_id: orderDish.id,
-          p_quantity: quantity,
-          p_preferred_date: String(form.get('date')),
-          p_preferred_time: String(form.get('time') || ''),
-          p_fulfilment_method: String(form.get('fulfilment') || 'pickup'),
-          p_customer_note: String(form.get('note') || '').trim(),
-        });
-        if (orderError) throw orderError;
+      const payload = {
+        kitchen_name: kitchenName,
+        kitchen_location: kitchenLocation || null,
+        kitchen_description: kitchenDescription || null,
+        updated_at: new Date().toISOString()
+      };
+
+      if (kitchenImage?.size) {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
+        if (!allowedTypes.includes(kitchenImage.type) ||
+            kitchenImage.size > 6 * 1024 * 1024) {
+          throw new Error('Use a JPG, PNG, or WebP image up to 6 MB.');
+        }
+
+        const path = `${user.id}/kitchen-${Date.now()}-${kitchenImage.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+
+        const { error: uploadError } = await supabase
+          .storage.from('food-images')
+          .upload(path, kitchenImage, {
+            upsert: false,
+            contentType: kitchenImage.type
+          });
+
+        if (uploadError) throw uploadError;
+
+        payload.kitchen_image_url =
+          supabase.storage.from('food-images').getPublicUrl(path).data.publicUrl;
       }
-      setOrderSuccess(true); await refreshData(); notify(t('orderSuccess'));
-    } catch (e) { setError(e.message || t('orderSubmitError')); }
-    finally { setBusy(false); }
+
+      const { error: saveError } = await supabase
+        .from('profiles')
+        .update(payload)
+        .eq('id', user.id);
+
+      if (saveError) throw saveError;
+
+      const { data: updatedProfile, error: readError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (readError) throw readError;
+
+      setProfile(updatedProfile);
+      notify('Kitchen profile saved successfully.');
+      formElement.reset();
+    } catch (e) {
+      setError(e.message || t('authError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+
+  async function submitOrder(event) {
+    event.preventDefault();
+    if (!orderDish) return;
+    const form = new FormData(event.currentTarget);
+    const quantity = Number(form.get('quantity') || 0);
+    const preferredDate = String(form.get('date') || '');
+    setOrderError('');
+    if (!preferredDate) { setOrderError(t('dateRequired')); return; }
+    if (!(quantity >= 1)) { setOrderError(t('quantityPositive')); return; }
+    if (!hasSupabase || !user) { setOrderError(t('setupText')); return; }
+    setBusy(true); setError('');
+    const dishId = orderDish.id;
+    const cookId = orderDish.cook_id;
+    try {
+      // Make sure the profile row exists before the database validates the role,
+      // otherwise the SQL function rejects the order with a confusing message.
+      let currentProfile = profile;
+      if (!currentProfile) {
+        const { error: ensureError } = await supabase.rpc('ensure_my_profile');
+        if (!ensureError) {
+          const { data: fetched } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+          currentProfile = fetched || null;
+          setProfile(currentProfile);
+        }
+      }
+      if (!currentProfile) throw Object.assign(new Error(t('profileMissingHelp')), { code: 'NO_PROFILE' });
+      if (currentProfile.role !== 'customer') throw Object.assign(new Error(t('customerAccountRequired')), { code: 'WRONG_ROLE' });
+
+      const { data: createdOrderId, error: rpcError } = await supabase.rpc('create_preorder', {
+        p_cook_id: cookId,
+        p_dish_id: dishId,
+        p_quantity: quantity,
+        p_preferred_date: preferredDate,
+        p_preferred_time: String(form.get('time') || ''),
+        p_fulfilment_method: String(form.get('fulfilment') || 'pickup'),
+        p_customer_note: String(form.get('note') || '').trim(),
+      });
+      if (rpcError) throw rpcError;
+
+      // Never report success unless the row is actually readable from Supabase.
+      const { data: saved, error: verifyError } = await supabase
+        .from('orders').select('id, status, total_amount').eq('id', createdOrderId).maybeSingle();
+      if (verifyError) throw verifyError;
+      if (!saved) throw Object.assign(new Error(t('orderNotSaved')), { code: 'NOT_SAVED' });
+
+      setOrderSuccess(true);
+      notify(t('orderSuccess'));
+      await refreshData();
+    } catch (e) {
+      const message = describeOrderError(e, t);
+      setOrderError(message);
+      setError(message);
+    } finally { setBusy(false); }
+  }
+
+  function openOrderSheet(dish) {
+    setOrderError('');
+    setOrderSuccess(false);
+    if (!user) {
+      setSelectedDish(null);
+      setAuthMode('signin');
+      changePage('auth');
+      return;
+    }
+    setSelectedDish(null);
+    setOrderDish(dish);
   }
 
   async function reviewApplication(app, field, action, reason = '') {
@@ -367,12 +531,6 @@ export default function App() {
       <button className="mobile-menu" onClick={() => setMobileNav(v => !v)} aria-label="Toggle navigation"><MenuIcon size={20} /></button>
       <nav className={`site-nav ${mobileNav ? 'open' : ''}`}>
         <button className={page === 'discover' ? 'active' : ''} onClick={() => changePage('discover')}>{t('discover')}</button>
-        <button
-  className={page === 'explore' ? 'active' : ''}
-  onClick={() => changePage('explore')}
->
-  {t('exploreMore')}
-</button>
         {user && isCook && <button className={page === 'cook' ? 'active' : ''} onClick={() => changePage('cook')}>{t('myDashboard')}</button>}
         {user && role === 'customer' && <button className={page === 'orders' ? 'active' : ''} onClick={() => changePage('orders')}>{t('orderHistory')}</button>}
         {user && isAdmin && <button className={page === 'admin' ? 'active' : ''} onClick={() => changePage('admin')}>{t('adminReview')}</button>}
@@ -387,51 +545,102 @@ export default function App() {
     </header>
 
     {error && <div className="global-alert error-alert"><CircleAlert size={17} /><span>{error}</span><button onClick={() => setError('')} aria-label={t('close')}><X size={16} /></button></div>}
+    {hasSupabase && user && profileReady && !profile && <div className="global-alert error-alert"><CircleAlert size={17} /><span>{t('accountSetupIncomplete')}</span></div>}
 
     <main className="main-content">
       {page === 'discover' && <>
         <section className="hero-panel"><div className="hero-text"><div className="eyebrow"><span className="eyebrow-dot" /> {t('introTitle')}</div><h1>{t('hero')}</h1><p>{t('heroText')}</p><div className="hero-badges"><span><ShieldCheck size={16} /> {t('approvedSeller')}</span><span><Clock3 size={16} /> {t('orderInstructions')}</span></div><button className="primary-button" onClick={() => document.getElementById('food-discovery')?.scrollIntoView({ behavior: 'smooth' })}>{t('startBrowsing')} <ArrowRight size={17} /></button></div><div className="hero-visual"><img src="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1100&q=85" alt="Home-cooked meal" /><div className="hero-sticker"><span>♡</span><strong>{t('heroStickerTitle')}</strong><small>{t('heroStickerSubtitle')}</small></div></div></section>
         <section id="food-discovery" className="discovery-section"><div className="section-heading"><div><div className="eyebrow">{t('searchCooks')}</div><h2>{t('welcome')}</h2><p>{t('menuPublicNote')}</p></div><div className="listing-count"><Utensils size={17} /> {filteredDishes.length} {t('dishCount')}</div></div>
           <div className="search-tools"><div className="search-field"><Search size={19} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('search')} /></div><div className="category-pills">{categories.map(c => <button key={c.key} className={category === c.key ? 'selected' : ''} onClick={() => setCategory(c.key)}>{c.label}</button>)}</div></div>
-          {filteredDishes.length ? <div className="food-grid">{filteredDishes.map(dish => <article className="food-card" key={dish.id}><button className="food-image" onClick={() => setSelectedDish(dish)}>{dish.image_url ? <img src={dish.image_url} alt={dish.name} loading="lazy" /> : <div className="own-dish-placeholder"><Utensils size={24} /></div>}<span className="food-tag"><ShieldCheck size={13} /> {t('approvedSeller')}</span><HygieneBadge t={t} status={getHygieneStatus(dish)} /></button><div className="food-card-body"><div className="cook-label"><ChefHat size={14} /> {dish.cook_name || t('cookName')}</div><button className="food-title" onClick={() => setSelectedDish(dish)}>{dish.name}</button><p>{dish.description}</p><div className="food-card-bottom"><strong>{money(dish.price)}</strong><button className="small-primary" onClick={() => { setSelectedDish(dish); setOrderDish(dish); setOrderSuccess(false); if (!user) setPage('auth'); }}><Plus size={16} /> {t('order')}</button></div><small className="portion-label">{t('availableLabel')}: {dish.portions_available}</small></div></article>)}</div> : <div className="empty-state"><span>🍲</span><h3>{t('noDishesYet')}</h3><p>{t('noResults')}</p></div>}
-        </section>
-        <section className="trust-strip"><div><ShieldCheck size={22} /><span><strong>{t('foodSafety')}</strong><small>{t('foodSafetyText')}</small></span></div><div><ShoppingBag size={22} /><span><strong>{t('paymentInfo')}</strong><small>{t('orderNotice')}</small></span></div></section>
-        <PublicReviews t={t} reviews={reviews} />
-      </>}
- 
-{page === 'explore' && (
-  <ExploreMorePage
-    t={t}
-    phasesOpen={phasesOpen}
-    setPhasesOpen={setPhasesOpen}
-  />
+
+{filteredDishes.length ? (
+  <div className="food-grid">
+    {filteredDishes.map(dish => (
+      <article className="food-card" key={dish.id}>
+        <button
+          type="button"
+          className="food-image"
+          onClick={() => setSelectedDish(dish)}
+        >
+          {dish.image_url ? (
+            <img src={dish.image_url} alt={dish.name} loading="lazy" />
+          ) : (
+            <div className="own-dish-placeholder">
+              <Utensils size={24} />
+            </div>
+          )}
+          <span className="food-tag">
+            <ShieldCheck size={13} /> {t('approvedSeller')}
+          </span>
+          <HygieneBadge t={t} status={getHygieneStatus(dish)} />
+        </button>
+
+        <div className="food-card-body">
+          <button
+            type="button"
+            className="cook-label kitchen-name-button"
+            onClick={() => setSelectedKitchen(dish)}
+            title="View kitchen and menu"
+          >
+            {dish.kitchen_image_url ? (
+              <img
+                className="kitchen-avatar"
+                src={dish.kitchen_image_url}
+                alt=""
+              />
+            ) : (
+              <ChefHat size={14} />
+            )}
+            <span>{dish.cook_name || t('cookName')}</span>
+            <ArrowRight size={13} />
+          </button>
+
+          <button
+            type="button"
+            className="food-title"
+            onClick={() => setSelectedDish(dish)}
+          >
+            {dish.name}
+          </button>
+
+          <p>{dish.description}</p>
+
+          <div className="food-card-bottom">
+            <strong>{money(dish.price)}</strong>
+            <button
+              type="button"
+              className="small-primary"
+              onClick={() => openOrderSheet(dish)}
+            >
+              <Plus size={16} /> {t('order')}
+            </button>
+          </div>
+
+          <small className="portion-label">
+            {t('availableLabel')}: {dish.portions_available}
+          </small>
+        </div>
+      </article>
+    ))}
+  </div>
+) : (
+  <div className="empty-state">
+    <span>🍲</span>
+    <h3>{t('noDishesYet')}</h3>
+    <p>{t('noResults')}</p>
+  </div>
 )}
 
-      {page === 'auth' && <section className="auth-layout"><div className="auth-story"><div className="brand-symbol large"><Leaf size={30} /></div><div className="eyebrow">{t('tagline')}</div><h1>{t('authWelcome')}</h1><p>{t('authText')}</p><div className="auth-feature"><ShieldCheck size={19} /> {t('privacyNote')}</div></div><div className="auth-card"><div className="auth-tabs"><button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); setError(''); }}>{t('signIn')}</button><button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); setError(''); }}>{t('signUp')}</button></div><h2>{authMode === 'signin' ? t('signIn') : t('signUp')}</h2><form onSubmit={handleAuth} className="form-stack">{authMode === 'signup' && <><label>{t('fullName')}<input name="displayName" required minLength="2" /></label><label>{t('role')}<select name="role"><option value="customer">{t('customer')}</option><option value="cook">{t('cook')}</option></select></label></>}<label>{t('email')}<input name="email" type="email" required placeholder={t('emailPlaceholder')} autoComplete="email" /></label><label>
-  {t('password')}
-  <div className="password-input-wrap">
-    <input
-      name="password"
-      type={showPassword ? 'text' : 'password'}
-      required
-      minLength="8"
-      placeholder={t('passwordHint')}
-      autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
-    />
-    <button
-      type="button"
-      className="password-toggle"
-      onClick={() => setShowPassword(value => !value)}
-      aria-label={showPassword ? 'Hide password' : 'Show password'}
-      aria-pressed={showPassword}
-    >
-      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-    </button>
-  </div>
-</label><button className="primary-button full-width" disabled={busy}>{busy ? t('saving') : authMode === 'signin' ? t('signIn') : t('createAccount')} <ArrowRight size={17} /></button></form>
+        </section>
+        <section className="trust-strip"><div><ShieldCheck size={22} /><span><strong>{t('foodSafety')}</strong><small>{t('foodSafetyText')}</small></span></div><div><ShoppingBag size={22} /><span><strong>{t('paymentInfo')}</strong><small>{t('orderNotice')}</small></span></div></section>
+        <PhaseRoadmap t={t} open={phasesOpen} onToggle={setPhasesOpen} />
+        <PublicReviews t={t} reviews={reviews} />
+      </>}
+
+      {page === 'auth' && <section className="auth-layout"><div className="auth-story"><div className="brand-symbol large"><Leaf size={30} /></div><div className="eyebrow">{t('tagline')}</div><h1>{t('authWelcome')}</h1><p>{t('authText')}</p><div className="auth-feature"><ShieldCheck size={19} /> {t('privacyNote')}</div></div><div className="auth-card"><div className="auth-tabs"><button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); setError(''); }}>{t('signIn')}</button><button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); setError(''); }}>{t('signUp')}</button></div><h2>{authMode === 'signin' ? t('signIn') : t('signUp')}</h2><form onSubmit={handleAuth} className="form-stack">{authMode === 'signup' && <><label>{t('fullName')}<input name="displayName" required minLength="2" /></label><label>{t('role')}<select name="role"><option value="customer">{t('customer')}</option><option value="cook">{t('cook')}</option></select></label></>}<label>{t('email')}<input name="email" type="email" required placeholder={t('emailPlaceholder')} autoComplete="email" /></label><label>{t('password')}<input name="password" type="password" required minLength="8" placeholder={t('passwordHint')} autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} /></label><button className="primary-button full-width" disabled={busy}>{busy ? t('saving') : authMode === 'signin' ? t('signIn') : t('createAccount')} <ArrowRight size={17} /></button></form>
           <p className="auth-footnote">{hasSupabase ? t('adminSetup') : t('setupText')}</p></div></section>}
 
-      {page === 'cook' && user && isCook && <CookDashboard t={t} user={user} profile={profile} application={myApplication} dishes={myDishes} orders={myOrders} hygieneSubmissions={hygieneSubmissions} reviews={reviews} notifications={notifications} editingDish={editingDish} setEditingDish={setEditingDish} busy={busy} onApplicationSubmit={submitApplication} onAddDish={addDish} onSubmitHygiene={submitHygieneUpdate} onUpdateOrder={updateOrder} onReadNotification={markNotificationRead} onError={setError} />}
+      {page === 'cook' && user && isCook && <CookDashboard t={t} user={user} profile={profile} application={myApplication} dishes={myDishes} orders={myOrders} hygieneSubmissions={hygieneSubmissions} reviews={reviews} notifications={notifications} editingDish={editingDish} setEditingDish={setEditingDish} busy={busy} onApplicationSubmit={submitApplication} onAddDish={addDish} onSubmitHygiene={submitHygieneUpdate} onUpdateOrder={updateOrder} onReadNotification={markNotificationRead} onError={setError} onSaveKitchenProfile={saveKitchenProfile} />}
       {page === 'orders' && user && role === 'customer' && <CustomerOrders t={t} orders={myOrders} busy={busy} onConfirmReceived={confirmReceived} onSubmitReview={submitReview} notifications={notifications} onReadNotification={markNotificationRead} />}
       {page === 'admin' && user && isAdmin && <AdminDashboard t={t} applications={applications} orders={allOrders} pendingDishes={pendingDishes} hygieneSubmissions={hygieneSubmissions} busy={busy} onReview={reviewApplication} onReviewDish={reviewDish} onReviewHygiene={reviewHygiene} onUpdateOrder={updateOrder} />}
       {page !== 'discover' && page !== 'auth' && !user && <section className="empty-state"><UserRound size={32} /><h3>{t('signIn')}</h3><p>{t('authText')}</p><button className="primary-button" onClick={() => changePage('auth')}>{t('signIn')}</button></section>}
@@ -440,8 +649,25 @@ export default function App() {
 
     <footer className="site-footer"><div className="footer-brand"><span className="brand-symbol"><Leaf size={18} /></span><span><strong>mom's perisa</strong><small>{t('tagline')}</small></span></div><p>{t('introBody')}</p><small>© 2026 Mom’s Perisa · Version 1</small></footer>
 
-    {selectedDish && !orderDish && <DishDetails dish={selectedDish} reviews={reviews} t={t} onClose={() => setSelectedDish(null)} onOrder={() => { setOrderDish(selectedDish); setSelectedDish(null); setOrderSuccess(false); if (!user) setPage('auth'); }} />}
-    {orderDish && user && role === 'customer' && <OrderModal dish={orderDish} t={t} busy={busy} success={orderSuccess} onClose={() => { setOrderDish(null); setOrderSuccess(false); setError(''); }} onSubmit={submitOrder} />}
+    {selectedDish && !orderDish && <DishDetails dish={selectedDish} reviews={reviews} t={t} onClose={() => setSelectedDish(null)} onOrder={() => openOrderSheet(selectedDish)} />}
+    {selectedKitchen && !orderDish && (
+  <KitchenDetails
+    dish={selectedKitchen}
+    dishes={dishes}
+    reviews={reviews}
+    t={t}
+    onClose={() => setSelectedKitchen(null)}
+    onSelectDish={(dish) => {
+      setSelectedKitchen(null);
+      setSelectedDish(dish);
+    }}
+    onOrder={(dish) => {
+      setSelectedKitchen(null);
+      openOrderSheet(dish);
+    }}
+  />
+)}
+    {orderDish && user && <OrderModal dish={orderDish} t={t} busy={busy} success={orderSuccess} error={orderError} blockReason={orderBlockReason} onClose={() => { setOrderDish(null); setOrderSuccess(false); setOrderError(''); setError(''); }} onSubmit={submitOrder} />}
     {notice && <div className="toast"><CircleCheck size={18} /> {notice}</div>}
   </div>;
 }
@@ -456,152 +682,6 @@ function getHygieneStatus(dish) {
   if (!dish.hygiene_last_updated_at) return 'outdated';
   return Date.now() - new Date(dish.hygiene_last_updated_at).getTime() <= threeDays ? 'updated' : 'outdated';
 }
-
-
-function ExploreMorePage({ t, phasesOpen, setPhasesOpen }) {
-
-  return (
-    <div className="explore-page">
-      <section className="explore-hero">
-        <div className="eyebrow">{t('exploreEyebrow')}</div>
-        <h1>{t('originStoryTitle')}</h1>
-        <p>{t('originStorySubtitle')}</p>
-      </section>
-
-      <section className="explore-content-card">
-        <h2>{t('storyHeading')}</h2>
-        <p>{t('storyParagraph1')}</p>
-        <p>{t('storyParagraph2')}</p>
-        <p>{t('storyParagraph3')}</p>
-        <p>{t('storyParagraph4')}</p>
-        <p>{t('storyParagraph5')}</p>
-      </section>
-
-      <section className="explore-content-card">
-        <h2>{t('objectivesTitle')}</h2>
-        <div className="explore-objectives">
-          <article>
-            <span>01</span>
-            <h3>{t('objective1Title')}</h3>
-            <p>{t('objective1Text')}</p>
-          </article>
-          <article>
-            <span>02</span>
-            <h3>{t('objective2Title')}</h3>
-            <p>{t('objective2Text')}</p>
-          </article>
-          <article>
-            <span>03</span>
-            <h3>{t('objective3Title')}</h3>
-            <p>{t('objective3Text')}</p>
-          </article>
-          <article>
-            <span>04</span>
-            <h3>{t('objective4Title')}</h3>
-            <p>{t('objective4Text')}</p>
-          </article>
-        </div>
-      </section>
-
-      <section className="explore-content-card">
-        <h2>{t('visionTitle')}</h2>
-        <p>{t('visionParagraph1')}</p>
-        <p>{t('visionParagraph2')}</p>
-      </section>
-
-      <section className="explore-content-card">
-        <PhaseRoadmap
-          t={t}
-          open={phasesOpen}
-          onToggle={setPhasesOpen}
-        />
-      </section>
-
-      <section className="explore-team-card">
-        <h2>{t('joinTeamTitle')}</h2>
-        <p>{t('joinTeamText')}</p>
-        <p>{t('joinTeamText2')}</p>
-        <a href="https://mail.google.com/mail/u/6/#inbox?compose=CllgCJZdBnnPpdCvLtbVxXBxPkMQcHfnWFZcpKgXlxjpsqJWKhxgbxTspgjGqWpFWLvkBVtvkTL">
-          momsperisasupport@gmail.com
-        </a>
-      </section>
-
-      <section className="explore-content-card">
-        <h2>{t('contactTitle')}</h2>
-        <p>{t('contactText')}</p>
-
-        <form
-          className="form-stack explore-contact-form"
-         
-
-
-onSubmit={(event) => {
-  event.preventDefault();
-
-  const formData = new FormData(event.currentTarget);
-
-  const name = String(formData.get('name') || '').trim();
-  const email = String(formData.get('email') || '').trim();
-  const message = String(formData.get('message') || '').trim();
-
-  const subject = `Mom's Perisa enquiry from ${name}`;
-
-  const body =
-    `Name: ${name}\n` +
-    `Email: ${email}\n\n` +
-    `Message:\n${message}`;
-
-  const gmailUrl = new URL(
-    'https://mail.google.com/mail/u/0/'
-  );
-
-  gmailUrl.searchParams.set('view', 'cm');
-  gmailUrl.searchParams.set('fs', '1');
-  gmailUrl.searchParams.set('to', 'momsperisasupport@gmail.com');
-  gmailUrl.searchParams.set('su', subject);
-  gmailUrl.searchParams.set('body', body);
-
-  window.open(gmailUrl.toString(), '_blank');
-}}
-
-
-        >
-          <label>
-            {t('contactName')}
-            <input name="name" required minLength="2" />
-          </label>
-
-          <label>
-            {t('contactEmail')}
-            <input name="email" type="email" required />
-          </label>
-
-          <label>
-            {t('contactMessage')}
-            <textarea name="message" rows="5" required minLength="10" />
-          </label>
-
-          <button className="primary-button" type="submit">
-            {t('contactSend')}
-          </button>
-        </form>
-
-        <p className="contact-prototype-notice">
-          {t('contactPrototypeNotice')}
-        </p>
-
-        <p>
-          {t('preferEmail')}{' '}
-          <a href="mailto:momsperisasupport@gmail.com">
-            {t('contactEmailLink')}
-          </a>
-        </p>
-      </section>
-    </div>
-  );
-}
-
-
 
 function HygieneBadge({ t, status }) {
   return <span className={`hygiene-status-pill ${status}`}>{t(status === 'process' ? 'hygieneProcess' : status === 'updated' ? 'hygieneUpdated' : 'hygieneOutdated')}</span>;
@@ -625,26 +705,304 @@ function PublicReviews({ t, reviews }) {
 
 function SparklesIcon() { return <span className="sparkle-mark">✦</span>; }
 
+
+function KitchenDetails({ dish, dishes, reviews, t, onClose, onSelectDish, onOrder }) {
+  const kitchenDishes = (dishes || []).filter(
+    item => item.cook_id === dish.cook_id &&
+      item.status === 'approved'
+  );
+
+  const availableDishes = kitchenDishes.filter(
+    item => item.available !== false &&
+      Number(item.portions_available) > 0
+  );
+
+  return (
+    <div
+      className="modal-backdrop"
+      onMouseDown={e => e.target === e.currentTarget && onClose()}
+    >
+      <section className="modal-card kitchen-details-modal">
+        <button
+          className="modal-close"
+          onClick={onClose}
+          aria-label={t('close')}
+        >
+          <X size={19} />
+        </button>
+
+        <div className="kitchen-details-header">
+          {dish.kitchen_image_url ? (
+            <img
+              className="kitchen-cover"
+              src={dish.kitchen_image_url}
+              alt={dish.cook_name || 'Kitchen'}
+            />
+          ) : (
+            <div className="kitchen-cover kitchen-cover-placeholder">
+              <ChefHat size={42} />
+            </div>
+          )}
+
+          <div className="modal-content">
+            <div className="eyebrow">HOME KITCHEN</div>
+            <h2>{dish.cook_name || t('cookName')}</h2>
+
+            {dish.kitchen_location && (
+              <p className="kitchen-location">
+                {dish.kitchen_location}
+              </p>
+            )}
+
+            {dish.kitchen_description && (
+              <p>{dish.kitchen_description}</p>
+            )}
+
+            <small>
+              {availableDishes.length} available dish(es)
+            </small>
+          </div>
+        </div>
+
+        <div className="modal-content kitchen-menu-content">
+          <h3>Kitchen Menu</h3>
+
+          {kitchenDishes.length ? (
+            <div className="kitchen-menu-list">
+              {kitchenDishes.map(item => {
+                const available =
+                  item.available !== false &&
+                  Number(item.portions_available) > 0;
+
+                return (
+                  <article className="kitchen-menu-item" key={item.id}>
+                    {item.image_url ? (
+                      <img src={item.image_url} alt={item.name} />
+                    ) : (
+                      <div className="own-dish-placeholder">
+                        <Utensils size={20} />
+                      </div>
+                    )}
+
+                    <div className="kitchen-menu-item-info">
+                      <button
+                        type="button"
+                        className="food-title"
+                        onClick={() => onSelectDish(item)}
+                      >
+                        {item.name}
+                      </button>
+
+                      <small>
+                        {available
+                          ? `${item.portions_available} portion(s) available`
+                          : 'Currently unavailable'}
+                      </small>
+
+                      <strong>{money(item.price)}</strong>
+                    </div>
+
+                    <button
+                      className="small-primary"
+                      disabled={!available}
+                      onClick={() => onOrder(item)}
+                    >
+                      <Plus size={15} /> {t('order')}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="mini-empty">
+              <Utensils size={24} />
+              <p>No approved dishes listed yet.</p>
+            </div>
+          )}
+
+          {(reviews || []).filter(
+            review => review.cook_id === dish.cook_id &&
+              review.rating && review.comment
+          ).length > 0 && (
+            <div className="dish-shop-reviews">
+              <h3>{t('customerReviews')}</h3>
+              {(reviews || []).filter(
+                review => review.cook_id === dish.cook_id &&
+                  review.rating && review.comment
+              ).slice(0, 4).map(review => (
+                <article key={review.id}>
+                  <div className="review-stars">
+                    {'★'.repeat(review.rating)}
+                    {'☆'.repeat(5 - review.rating)}
+                  </div>
+                  <p>{review.comment}</p>
+                  <small>
+                    {review.profiles?.display_name || t('customer')}
+                  </small>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function DishDetails({ dish, reviews, t, onClose, onOrder }) {
   return <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && onClose()}><section className="modal-card dish-detail-modal"><button className="modal-close" onClick={onClose} aria-label={t('close')}><X size={19} /></button>{dish.image_url ? <img className="detail-image" src={dish.image_url} alt={dish.name} /> : <div className="detail-image detail-image-placeholder"><Utensils size={42} /></div>}<div className="modal-content"><div className="cook-label"><ChefHat size={15} /> {dish.cook_name || t('cookName')}</div><h2>{dish.name}</h2><p>{dish.description}</p><div className="detail-info"><div><small>{t('price')}</small><strong>{money(dish.price)}</strong></div><div><small>{t('availableLabel')}</small><strong>{dish.portions_available}</strong></div></div><h4>{t('ingredients')}</h4><p>{dish.ingredients || t('allergenPrompt')}</p><p className="muted-note"><ShieldCheck size={15} /> {t('allergenPrompt')}</p>{(reviews || []).filter(r => r.cook_id === dish.cook_id && r.rating && r.comment).length > 0 && <div className="dish-shop-reviews"><h4>{t('customerReviews')}</h4>{(reviews || []).filter(r => r.cook_id === dish.cook_id && r.rating && r.comment).slice(0,4).map(r => <article key={r.id}><div className="review-stars">{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</div><p>{r.comment}</p><small>{r.profiles?.display_name || t('customer')}</small></article>)}</div>}<button className="primary-button full-width" onClick={onOrder}>{t('order')} <ArrowRight size={17} /></button></div></section></div>;
 }
 
-function OrderModal({ dish, t, busy, success, onClose, onSubmit }) {
-  return <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && onClose()}><section className="modal-card order-modal"><button className="modal-close" onClick={onClose} aria-label={t('close')}><X size={19} /></button>{success ? <div className="success-content"><span className="success-icon"><Check size={28} /></span><h2>{t('orderSent')}</h2><p>{t('orderSentText')}</p><button className="primary-button full-width" onClick={onClose}>{t('close')}</button></div> : <><div className="eyebrow">{t('order')}</div><h2>{dish.name}</h2><p className="muted-note">{t('orderInstructions')}</p><form onSubmit={onSubmit} className="form-stack"><label>{t('quantity')}<input name="quantity" type="number" min="1" max={dish.portions_available} defaultValue="1" required /></label><div className="form-two"><label>{t('preferredDate')}<input name="date" type="date" min={new Date().toISOString().slice(0,10)} required /></label><label>{t('preferredTime')}<input name="time" type="time" /></label></div><label>{t('collectionMethod')}<select name="fulfilment"><option value="pickup">{t('pickup')}</option><option value="arrange">{t('arrange')}</option></select></label><label>{t('deliveryNote')}<textarea name="note" rows="3" maxLength="500" /></label><div className="payment-note"><CircleAlert size={17} /><span>{t('externalPayment')}</span></div><button className="primary-button full-width" disabled={busy}>{busy ? t('saving') : t('confirmOrder')} · {money(dish.price)} <ArrowRight size={17} /></button></form></>}</section></div>;
+function OrderModal({ dish, t, busy, success, error, blockReason, onClose, onSubmit }) {
+  const modalProps = { onMouseDown: e => e.target === e.currentTarget && onClose() };
+  let body;
+  if (blockReason) {
+    body = <div className="order-blocked"><span className="blocked-icon"><CircleAlert size={22} /></span><h2>{t('orderBlockedTitle')}</h2><p>{blockReason}</p><div className="order-blocked-actions"><button className="primary-button full-width" onClick={onClose}>{t('close')}</button></div></div>;
+  } else if (success) {
+    body = <div className="success-content"><span className="success-icon"><Check size={28} /></span><h2>{t('orderSent')}</h2><p>{t('orderSentText')}</p><button className="primary-button full-width" onClick={onClose}>{t('close')}</button></div>;
+  } else {
+    body = <>
+      <div className="eyebrow">{t('order')}</div>
+      <h2>{dish.name}</h2>
+      <p className="muted-note">{t('orderInstructions')}</p>
+      {error && <div className="order-form-alert" role="alert"><CircleAlert size={17} /><span><strong>{t('orderErrorTitle')}</strong>{error}</span></div>}
+      <form onSubmit={onSubmit} className="form-stack">
+        <label>{t('quantity')}<input name="quantity" type="number" min="1" max={dish.portions_available} defaultValue="1" required /></label>
+        <div className="form-two">
+          <label>{t('preferredDate')}<input name="date" type="date" min={localToday()} required /></label>
+          <label>{t('preferredTime')}<input name="time" type="time" /></label>
+        </div>
+        <label>{t('collectionMethod')}<select name="fulfilment"><option value="pickup">{t('pickup')}</option><option value="arrange">{t('arrange')}</option></select></label>
+        <label>{t('deliveryNote')}<textarea name="note" rows="3" maxLength="500" /></label>
+        <div className="payment-note"><CircleAlert size={17} /><span>{t('externalPayment')}</span></div>
+        <button className="primary-button full-width" disabled={busy}>{busy ? t('saving') : t('confirmOrder')} · {money(dish.price)} <ArrowRight size={17} /></button>
+      </form>
+    </>;
+  }
+  return <div className="modal-backdrop" {...modalProps}><section className="modal-card order-modal"><button className="modal-close" onClick={onClose} aria-label={t('close')}><X size={19} /></button>{body}</section></div>;
 }
 
-function CookDashboard({ t, user, profile, application, dishes, orders, hygieneSubmissions, reviews, notifications, editingDish, setEditingDish, busy, onApplicationSubmit, onAddDish, onSubmitHygiene, onUpdateOrder, onReadNotification, onError }) {
+// Local calendar date (YYYY-MM-DD). toISOString() uses UTC, which can show the
+// wrong "today" for users in Malaysia early in the morning.
+function localToday() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
+// Turn the raw PostgREST/Postgres error into an instruction the person can act on.
+function describeOrderError(error, t) {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '');
+  if (code === 'NO_PROFILE') return message;
+  if (code === 'WRONG_ROLE') return message;
+  if (code === 'NOT_SAVED') return message;
+  if (code === 'PGRST202' || /could not find the function|function .* does not exist|schema cache/i.test(message)) return t('rpcMissingHelp');
+  if (/customer account required|only customer accounts/i.test(message)) return t('customerAccountRequired');
+  if (/not approved/i.test(message)) return t('sellerNotApproved');
+  if (/unavailable|no longer available|not enough portions/i.test(message)) return t('dishUnavailable');
+  if (/row-level security|permission denied/i.test(message)) return t('orderPermissionHelp');
+  if (/JWT|not authenticated/i.test(message)) return t('signInExpired');
+  return message || t('orderSubmitError');
+}
+
+function CookDashboard({ t, user, profile, application, dishes, orders, hygieneSubmissions, reviews, notifications, editingDish, setEditingDish, busy, onApplicationSubmit, onAddDish, onSubmitHygiene, onUpdateOrder, onReadNotification, onError, onSaveKitchenProfile  }) {
   const [tab, setTab] = useState('application');
   const appStatus = application?.status || 'not_submitted';
   const statusText = appStatus === 'approved' ? t('approved') : appStatus === 'pending' ? t('underReview') : appStatus === 'changes_requested' ? t('needsChanges') : t('notSubmitted');
   const appApproved = appStatus === 'approved';
+  const newOrderCount = (orders || []).filter(o => o.status === 'pending').length;
   return <section className="dashboard-page"><div className="page-heading"><div><div className="eyebrow">{t('myDashboard')}</div><h1>{t('welcome')}</h1><p>{profile?.display_name || user.user_metadata?.display_name || user.email}</p></div><span className={`status-badge ${appStatus}`}>{statusText}</span>{appApproved && <HygieneBadge t={t} status={getHygieneStatus(profile || {})}/>}</div>
     {!appApproved && <div className="notice-card"><ShieldCheck size={21} /><div><strong>{t('foodSafety')}</strong><p>{t('menuNeedsApproval')}</p></div></div>}
     {appApproved && <div className="notice-card success"><CircleCheck size={21} /><div><strong>{t('cookApprovedNotice')}</strong></div></div>}
     {notifications?.length > 0 && <div className="content-card"><div className="card-heading"><h2>{t('notifications')}</h2><span className="count-pill">{notifications.filter(n => !n.read_at).length}</span></div><div className="notification-list">{notifications.slice(0,5).map(n => <button key={n.id} className={`notification-row ${n.read_at ? 'read' : ''}`} onClick={() => !n.read_at && onReadNotification(n)}><span className="notification-dot"/><span><strong>{n.title}</strong><small>{n.body}</small><small>{new Date(n.created_at).toLocaleString()}</small></span></button>)}</div></div>}
     <div className="cook-finance-grid"><div className="stat-card"><span>{t('totalOrders')}</span><strong>{orders.length}</strong><small>{t('allTime')}</small></div><div className="stat-card"><span>{t('estimatedSales')}</span><strong>{money(orders.filter(o => ['handed_over','completed'].includes(o.status) && o.customer_received_confirmation !== false).reduce((sum,o) => sum + Number(o.total_amount || 0),0))}</strong><small>{t('externalPaymentCaveat')}</small></div><div className="stat-card"><span>{t('averageRating')}</span><strong>{reviews?.length ? (reviews.reduce((sum,r) => sum + Number(r.rating || 0),0)/reviews.length).toFixed(1) : '—'}</strong><small>{reviews?.length || 0} {t('reviews')}</small></div></div>
     {dishes.length > 0 && <div className="content-card dish-demand-card"><div className="card-heading"><div><h2>{t('dishDemand')}</h2><p>{t('dishDemandHelp')}</p></div></div><div className="own-dish-list">{dishes.map(d => { const sold = orders.flatMap(o => o.order_items || []).filter(i => i.dish_id === d.id).reduce((sum,i) => sum + Number(i.quantity || 0),0); return <div className="own-dish" key={d.id}>{d.image_url ? <img src={d.image_url} alt=""/> : <div className="own-dish-placeholder"><Utensils size={18}/></div>}<div><strong>{d.name}</strong><small>{t('portionsSold')}: {sold} · {t('estimatedSales')}: {money(orders.filter(o => ['handed_over','completed'].includes(o.status) && o.customer_received_confirmation !== false).reduce((sum,o) => sum + (o.order_items || []).filter(i => i.dish_id === d.id).reduce((sub,i) => sub + Number(i.unit_price || 0) * Number(i.quantity || 0),0),0))}</small></div></div>; })}</div></div>}
-    <div className="dashboard-tabs"><button className={tab === 'application' ? 'active' : ''} onClick={() => setTab('application')}><FileCheck2 size={16} /> {t('cookApplication')}</button><button className={tab === 'menu' ? 'active' : ''} onClick={() => setTab('menu')}><Utensils size={16} /> {t('menuManagement')}</button><button className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}><ClipboardList size={16} /> {t('ordersForCook')}</button></div>
+    <div className="dashboard-tabs"><button className={tab === 'application' ? 'active' : ''} onClick={() => setTab('application')}><FileCheck2 size={16} /> {t('cookApplication')}</button><button
+  className={tab === 'profile' ? 'active' : ''}
+  onClick={() => setTab('profile')}
+>
+  <ChefHat size={16} /> Kitchen Profile
+</button><button className={tab === 'menu' ? 'active' : ''} onClick={() => setTab('menu')}><Utensils size={16} /> {t('menuManagement')}</button><button className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}><ClipboardList size={16} /> {t('ordersForCook')}{newOrderCount > 0 && <span className="tab-count">{newOrderCount}</span>}</button></div>
+
+{tab === 'profile' && (
+  <div className="content-card kitchen-profile-form">
+    <div className="card-heading">
+      <div>
+        <h2>Kitchen Profile</h2>
+        <p>Introduce your home kitchen to customers.</p>
+      </div>
+      <ChefHat size={24} />
+    </div>
+
+    {profile?.kitchen_image_url && (
+      <div className="kitchen-profile-preview">
+        <img
+          src={profile.kitchen_image_url}
+          alt="Kitchen profile"
+        />
+      </div>
+    )}
+
+    <form
+      className="form-stack"
+      onSubmit={onSaveKitchenProfile}
+    >
+      <label>
+        Kitchen name *
+        <input
+          name="kitchenName"
+          required
+          maxLength="100"
+          defaultValue={profile?.kitchen_name || ''}
+          placeholder="e.g. Vikneswary Kitchen"
+        />
+      </label>
+
+      <label>
+        Location
+        <input
+          name="kitchenLocation"
+          maxLength="200"
+          defaultValue={profile?.kitchen_location || ''}
+          placeholder="e.g. Ampang, Kuala Lumpur"
+        />
+      </label>
+
+      <label>
+        About your kitchen
+        <textarea
+          name="kitchenDescription"
+          rows="4"
+          maxLength="500"
+          defaultValue={profile?.kitchen_description || ''}
+          placeholder="Tell customers about your cooking and specialities."
+        />
+        <small className="form-help">
+          Maximum 500 characters.
+        </small>
+      </label>
+
+      <label>
+        Kitchen profile picture
+        <input
+          name="kitchenImage"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+        />
+        <small className="form-help">
+          JPG, PNG or WebP, up to 6 MB.
+        </small>
+      </label>
+
+      <button className="primary-button" disabled={busy}>
+        {busy ? 'Saving...' : 'Save Kitchen Profile'}
+        <Check size={17} />
+      </button>
+    </form>
+  </div>
+)}
+
     {tab === 'application' && <div className="content-card"><div className="card-heading"><div><h2>{t('application')}</h2><p>{t('applicationHelp')}</p></div><span className={`status-badge ${appStatus}`}>{statusText}</span></div>{application?.rejection_reason && <div className="review-feedback"><strong>{t('rejectionReason')}</strong><p>{application.rejection_reason}</p><small>{t('resubmitHelp')}</small></div>}<form className="form-grid" onSubmit={onApplicationSubmit}><label className="span-two">{t('ssm')} *<input name="ssmNumber" required defaultValue={application?.ssm_number || ''} /></label><FileInput label={t('ssmDocument')} name="ssmFile" existing={application?.ssm_file_path} t={t} /><FileInput label={t('hygiene')} name="hygieneFile" existing={application?.hygiene_file_path} t={t} accept="image/jpeg,image/png" helpKey="hygieneImageRules" /><label className="span-two">{t('hygieneNotes')}<textarea name="hygieneNotes" rows="4" maxLength="1000" defaultValue={application?.hygiene_notes || ''} placeholder={t('photoPrivacy')} /></label><p className="form-help span-two">{t('supportedFiles')} · {t('photoPrivacy')} {t('termsNote')}</p><button className="primary-button span-two" disabled={busy || appStatus === 'pending' || appStatus === 'approved'}>{busy ? t('saving') : t('submitApplication')} <ArrowRight size={17} /></button></form><div className="safety-callout"><CircleAlert size={18} /><p>{t('foodSafetyText')}</p></div></div>}
     {tab === 'application' && appApproved && <div className="content-card hygiene-update-card"><div className="card-heading"><div><h2>{t('hygieneEveryThreeDays')}</h2><p>{t('hygieneUpdateHelp')}</p></div></div><form className="form-grid" onSubmit={onSubmitHygiene}><FileInput label={t('hygieneEvidence')} name="hygieneFile" t={t} accept="image/jpeg,image/png" helpKey="hygieneImageRules"/><label>{t('hygieneNotes')}<textarea name="notes" rows="3" maxLength="1000"/></label><button className="primary-button span-two" disabled={busy}>{busy ? t('saving') : t('submitHygieneUpdate')} <ArrowRight size={17}/></button></form>{hygieneSubmissions?.length > 0 && <div className="hygiene-history"><strong>{t('hygieneHistory')}</strong>{hygieneSubmissions.slice(0,3).map(h => <div className="hygiene-history-row" key={h.id}><span>{new Date(h.submitted_at).toLocaleString()}</span><span className={`hygiene-status-pill ${h.status}`}>{t(h.status) || h.status}</span>{h.review_note && <small>{h.review_note}</small>}</div>)}</div>}</div>}
     {tab === 'menu' && <div className="menu-layout"><div className="content-card"><h2>{t(editingDish ? 'editDish' : 'addDish')}</h2><p className="muted-note">{t('imageOptional')}</p><form key={editingDish?.id || 'new-dish'} onSubmit={onAddDish} className="form-stack"><label>{t('dishName')} *<input name="name" required maxLength="100" defaultValue={editingDish?.name || ''} /></label><label>{t('description')} *<textarea name="description" rows="3" required maxLength="1000" defaultValue={editingDish?.description || ''} /></label><label>{t('ingredients')}<textarea name="ingredients" rows="2" maxLength="1000" defaultValue={editingDish?.ingredients || ''} placeholder={t('ingredientsPlaceholder')} /></label><div className="form-two"><label>{t('price')} *<input name="price" type="number" min="0.50" step="0.10" required defaultValue={editingDish?.price || ''} /></label><label>{t('available')} *<input name="portions" type="number" min="1" max="500" required defaultValue={editingDish?.portions_available || 5} /></label></div><label>{t('category')}<select name="category" defaultValue={editingDish?.category || 'mains'}><option value="rice">{t('rice')}</option><option value="mains">{t('mains')}</option><option value="desserts">{t('desserts')}</option><option value="vegetarian">{t('vegetarian')}</option></select></label><label>{t('foodImage')} *<input name="foodImage" type="file" accept="image/jpeg,image/png,image/webp"/><small className="form-help">{t('foodImageRules')}</small></label><label>{t('imageUrl')}<input name="imageUrl" type="url" placeholder="https://…" /></label><button className="primary-button" disabled={busy || !appApproved}>{busy ? t('saving') : t(editingDish ? 'saveChanges' : 'addDishAction')} <Plus size={17} /></button>{!appApproved && <small className="form-help">{t('submitApplicationFirst')}</small>}</form></div><div className="content-card"><div className="card-heading"><h2>{t('myDishes')}</h2><span className="count-pill">{dishes.length}</span></div>{dishes.length ? <div className="own-dish-list">{dishes.map(d => <div className="own-dish" key={d.id}>{d.image_url ? <img src={d.image_url} alt="" /> : <div className="own-dish-placeholder"><Utensils size={18} /></div>}<div><strong>{d.name}</strong><small>{money(d.price)} · {t('availableLabel')}: {d.portions_available}</small>{d.moderation_note && <small className="form-help">{t('rejectionReason')}: {d.moderation_note}</small>}</div><span className={`status-badge ${d.status}`}>{d.status === 'approved' ? t('approved') : d.status === 'rejected' ? t('rejected') : t('underReview')}</span><button className="outline-button" onClick={() => { setEditingDish(d); setTab('menu'); }} type="button">{t('editDish')}</button></div>)}</div> : <div className="mini-empty"><Utensils size={24} /><p>{t('noMyDishes')}</p></div>}</div></div>}
@@ -707,4 +1065,3 @@ function PrivateDocumentLink({ path, t }) {
 function ReviewUnit({ title, status, path, notes = '', t, onAction, busy }) {
   return <div className="review-unit"><div className="review-unit-heading"><div><strong>{title}</strong><small>{status === 'approved' ? t('approved') : status === 'changes_requested' ? t('needsChanges') : t('underReview')}</small></div><span className={`review-status-dot ${status}`} /></div>{notes && <p>{notes}</p>}{path && <PrivateDocumentLink path={path} t={t} />}<div className="review-actions"><button className="outline-button" disabled={busy} onClick={() => onAction('approve')}><Check size={15} /> {t('approve')}</button><button className="danger-button" disabled={busy} onClick={() => onAction('request')}><RefreshCw size={14} /> {t('requestChanges')}</button></div></div>;
 }
-
