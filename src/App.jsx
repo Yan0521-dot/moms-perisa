@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, Bell, ChefHat, Check, ChevronDown, CircleAlert, ClipboardCheck, Clock3,
+  ArrowRight, Bell, ChefHat, Check, ChevronDown, CircleAlert, ClipboardCheck, Clock3, Eye, EyeOff,
   FileCheck2, Globe2, Heart, Languages, Leaf, LogIn, LogOut, Menu as MenuIcon,
   Moon, PackageCheck, Plus, Search, ShieldCheck, ShoppingBag, Sun, Utensils,
   X, CircleCheck, UserRound, Upload, ClipboardList, RefreshCw, Trash2
@@ -30,6 +30,8 @@ export default function App() {
   const [notifications, setNotifications] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [phasesOpen, setPhasesOpen] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [exploreMoreOpen, setExploreMoreOpen] = useState(false);
   const [editingDish, setEditingDish] = useState(null);
   const [myApplication, setMyApplication] = useState(null);
   const [myDishes, setMyDishes] = useState([]);
@@ -534,6 +536,7 @@ export default function App() {
         {user && isCook && <button className={page === 'cook' ? 'active' : ''} onClick={() => changePage('cook')}>{t('myDashboard')}</button>}
         {user && role === 'customer' && <button className={page === 'orders' ? 'active' : ''} onClick={() => changePage('orders')}>{t('orderHistory')}</button>}
         {user && isAdmin && <button className={page === 'admin' ? 'active' : ''} onClick={() => changePage('admin')}>{t('adminReview')}</button>}
+        <button className={page === 'explore' ? 'active' : ''} onClick={() => changePage('explore')}>Explore More</button>
         {!user && <button onClick={() => { setAuthMode('signup'); changePage('auth'); }}>{t('becomeCook')}</button>}
       </nav>
       <div className="header-tools">
@@ -633,17 +636,89 @@ export default function App() {
 
         </section>
         <section className="trust-strip"><div><ShieldCheck size={22} /><span><strong>{t('foodSafety')}</strong><small>{t('foodSafetyText')}</small></span></div><div><ShoppingBag size={22} /><span><strong>{t('paymentInfo')}</strong><small>{t('orderNotice')}</small></span></div></section>
-        <PhaseRoadmap t={t} open={phasesOpen} onToggle={setPhasesOpen} />
         <PublicReviews t={t} reviews={reviews} />
+        <section className="explore-more-cta">
+          <div>
+            <div className="eyebrow">GET TO KNOW US</div>
+            <h2>There’s more to Mom’s Perisa</h2>
+            <p>Discover our mission, vision, story, and the journey we’re building with home cooks.</p>
+          </div>
+          <button className="primary-button" onClick={() => changePage('explore')}>
+            Explore More <ArrowRight size={17} />
+          </button>
+        </section>
       </>}
 
-      {page === 'auth' && <section className="auth-layout"><div className="auth-story"><div className="brand-symbol large"><Leaf size={30} /></div><div className="eyebrow">{t('tagline')}</div><h1>{t('authWelcome')}</h1><p>{t('authText')}</p><div className="auth-feature"><ShieldCheck size={19} /> {t('privacyNote')}</div></div><div className="auth-card"><div className="auth-tabs"><button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); setError(''); }}>{t('signIn')}</button><button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); setError(''); }}>{t('signUp')}</button></div><h2>{authMode === 'signin' ? t('signIn') : t('signUp')}</h2><form onSubmit={handleAuth} className="form-stack">{authMode === 'signup' && <><label>{t('fullName')}<input name="displayName" required minLength="2" /></label><label>{t('role')}<select name="role"><option value="customer">{t('customer')}</option><option value="cook">{t('cook')}</option></select></label></>}<label>{t('email')}<input name="email" type="email" required placeholder={t('emailPlaceholder')} autoComplete="email" /></label><label>{t('password')}<input name="password" type="password" required minLength="8" placeholder={t('passwordHint')} autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} /></label><button className="primary-button full-width" disabled={busy}>{busy ? t('saving') : authMode === 'signin' ? t('signIn') : t('createAccount')} <ArrowRight size={17} /></button></form>
+      {page === 'explore' && <section className="explore-page">
+        <div className="explore-hero">
+          <div className="eyebrow">THE HEART OF MOM’S PERISA</div>
+          <h1>Good food brings people together.</h1>
+          <p>We’re building a community that helps people discover home-cooked food and helps home cooks share what they make with care.</p>
+          <button className="secondary-button" onClick={() => changePage('discover')}>
+            <ArrowRight size={16} /> Back to food discovery
+          </button>
+        </div>
+
+        <div className="explore-info-grid">
+          <article className="explore-info-card">
+            <div className="eyebrow">OUR MISSION</div>
+            <h2>Making home-cooked food easier to discover.</h2>
+            <p>Our mission is to connect customers with home cooks through a welcoming, hygiene-conscious platform where homemade meals can find the people who will enjoy them.</p>
+          </article>
+          <article className="explore-info-card">
+            <div className="eyebrow">OUR VISION</div>
+            <h2>A community where home cooks can grow.</h2>
+            <p>We envision a trusted community where talented home cooks can reach more customers, grow their small food businesses, and share the comfort of homemade food.</p>
+          </article>
+        </div>
+
+        <section className="explore-story">
+          <div className="eyebrow">WHY WE STARTED</div>
+          <h2>A little idea with a lot of heart.</h2>
+          <p>Mom’s Perisa began with a simple idea: home-cooked food deserves a place to be discovered. Many home cooks put care and effort into their food, but reaching new customers online can be difficult. We want to help bring these cooks and customers together in one place.</p>
+          <p>Trust and hygiene matter just as much as convenience. That’s why we’re building Mom’s Perisa with food safety, clear information, and a community-first mindset at its heart.</p>
+        </section>
+
+        <PhaseRoadmap t={t} open={phasesOpen} onToggle={setPhasesOpen} />
+
+        <section className="team-cta">
+          <div className="eyebrow">BUILD WITH US</div>
+          <h2>Help shape Mom’s Perisa.</h2>
+          <p>Interested in joining the Mom’s Perisa Team? We’d love to hear from people who want to help home cooks and local food communities grow.</p>
+          <a className="primary-button team-email-button" href="mailto:YOUR_EMAIL_HERE?subject=Joining%20the%20Mom%E2%80%99s%20Perisa%20Team">
+            Join Our Team <ArrowRight size={17} />
+          </a>
+        </section>
+      </section>}
+
+      {page === 'auth' && <section className="auth-layout"><div className="auth-story"><div className="brand-symbol large"><Leaf size={30} /></div><div className="eyebrow">{t('tagline')}</div><h1>{t('authWelcome')}</h1><p>{t('authText')}</p><div className="auth-feature"><ShieldCheck size={19} /> {t('privacyNote')}</div></div><div className="auth-card"><div className="auth-tabs"><button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); setError(''); }}>{t('signIn')}</button><button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); setError(''); }}>{t('signUp')}</button></div><h2>{authMode === 'signin' ? t('signIn') : t('signUp')}</h2><form onSubmit={handleAuth} className="form-stack">{authMode === 'signup' && <><label>{t('fullName')}<input name="displayName" required minLength="2" /></label><label>{t('role')}<select name="role"><option value="customer">{t('customer')}</option><option value="cook">{t('cook')}</option></select></label></>}<label>{t('email')}<input name="email" type="email" required placeholder={t('emailPlaceholder')} autoComplete="email" /></label><label className="password-field">
+  {t('password')}
+  <span className="password-input-wrap">
+    <input
+      name="password"
+      type={showPassword ? 'text' : 'password'}
+      required
+      minLength="8"
+      placeholder={t('passwordHint')}
+      autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+    />
+    <button
+      type="button"
+      className="password-toggle"
+      onClick={() => setShowPassword(value => !value)}
+      aria-label={showPassword ? 'Hide password' : 'Show password'}
+      aria-pressed={showPassword}
+    >
+      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+    </button>
+  </span>
+</label><button className="primary-button full-width" disabled={busy}>{busy ? t('saving') : authMode === 'signin' ? t('signIn') : t('createAccount')} <ArrowRight size={17} /></button></form>
           <p className="auth-footnote">{hasSupabase ? t('adminSetup') : t('setupText')}</p></div></section>}
 
       {page === 'cook' && user && isCook && <CookDashboard t={t} user={user} profile={profile} application={myApplication} dishes={myDishes} orders={myOrders} hygieneSubmissions={hygieneSubmissions} reviews={reviews} notifications={notifications} editingDish={editingDish} setEditingDish={setEditingDish} busy={busy} onApplicationSubmit={submitApplication} onAddDish={addDish} onSubmitHygiene={submitHygieneUpdate} onUpdateOrder={updateOrder} onReadNotification={markNotificationRead} onError={setError} onSaveKitchenProfile={saveKitchenProfile} />}
       {page === 'orders' && user && role === 'customer' && <CustomerOrders t={t} orders={myOrders} busy={busy} onConfirmReceived={confirmReceived} onSubmitReview={submitReview} notifications={notifications} onReadNotification={markNotificationRead} />}
       {page === 'admin' && user && isAdmin && <AdminDashboard t={t} applications={applications} orders={allOrders} pendingDishes={pendingDishes} hygieneSubmissions={hygieneSubmissions} busy={busy} onReview={reviewApplication} onReviewDish={reviewDish} onReviewHygiene={reviewHygiene} onUpdateOrder={updateOrder} />}
-      {page !== 'discover' && page !== 'auth' && !user && <section className="empty-state"><UserRound size={32} /><h3>{t('signIn')}</h3><p>{t('authText')}</p><button className="primary-button" onClick={() => changePage('auth')}>{t('signIn')}</button></section>}
+      {page !== 'discover' && page !== 'auth' && page !== 'explore' && !user && <section className="empty-state"><UserRound size={32} /><h3>{t('signIn')}</h3><p>{t('authText')}</p><button className="primary-button" onClick={() => changePage('auth')}>{t('signIn')}</button></section>}
       {user && ((page === 'admin' && !isAdmin) || (page === 'cook' && !isCook) || (page === 'orders' && role !== 'customer')) && <section className="empty-state"><ShieldCheck size={34} /><h3>{t('noPermission')}</h3><button className="primary-button" onClick={() => changePage('discover')}>{t('backHome')}</button></section>}
     </main>
 
