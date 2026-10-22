@@ -536,18 +536,8 @@ export default function App() {
         {user && isCook && <button className={page === 'cook' ? 'active' : ''} onClick={() => changePage('cook')}>{t('myDashboard')}</button>}
         {user && role === 'customer' && <button className={page === 'orders' ? 'active' : ''} onClick={() => changePage('orders')}>{t('orderHistory')}</button>}
         {user && isAdmin && <button className={page === 'admin' ? 'active' : ''} onClick={() => changePage('admin')}>{t('adminReview')}</button>}
-        <PublicReviews t={t} reviews={reviews} />
 
-<section className="explore-more-cta">
-  <div>
-    <div className="eyebrow">{t('exploreCtaEyebrow')}</div>
-    <h2>{t('exploreCtaTitle')}</h2>
-    <p>{t('exploreCtaText')}</p>
-  </div>
-  <button className="primary-button" onClick={() => changePage('explore')}>
-    {t('exploreMore')} <ArrowRight size={17} />
-  </button>
-</section>
+
         {!user && <button onClick={() => { setAuthMode('signup'); changePage('auth'); }}>{t('becomeCook')}</button>}
       </nav>
       <div className="header-tools">
