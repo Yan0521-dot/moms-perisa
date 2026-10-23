@@ -691,3 +691,19 @@
     border-color: #bbb !important;
   }
 }
+
+
+/* Mom's Perisa animated brand logo */
+.brand-symbol.brand-video {
+  overflow: hidden;
+  padding: 0;
+  isolation: isolate;
+}
+
+.brand-symbol.brand-video video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}

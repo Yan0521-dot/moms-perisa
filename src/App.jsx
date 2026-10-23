@@ -716,7 +716,11 @@ if (active && !queryError) {
     onClick={() => changePage('discover')}
     aria-label="Mom's Perisa home"
   >
-    <span className="brand-symbol"><Leaf size={21} /></span>
+    <span className="brand-symbol brand-video">
+      <video autoPlay loop muted playsInline preload="auto" aria-label="Mom's Perisa animated logo">
+        <source src="/moms-perisa-logo.mp4" type="video/mp4" />
+      </video>
+    </span>
     <span>
       <strong>mom's perisa</strong>
       <small>{t('tagline')}</small>
@@ -1041,7 +1045,11 @@ if (active && !queryError) {
 </section>}
 
 
-      {page === 'auth' && <section className="auth-layout"><div className="auth-story"><div className="brand-symbol large"><Leaf size={30} /></div><div className="eyebrow">{t('tagline')}</div><h1>{t('authWelcome')}</h1><p>{t('authText')}</p><div className="auth-feature"><ShieldCheck size={19} /> {t('privacyNote')}</div></div><div className="auth-card"><div className="auth-tabs"><button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); setError(''); }}>{t('signIn')}</button><button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); setError(''); }}>{t('signUp')}</button></div><h2>{authMode === 'signin' ? t('signIn') : t('signUp')}</h2><form onSubmit={handleAuth} className="form-stack">{authMode === 'signup' && <><label>{t('fullName')}<input name="displayName" required minLength="2" /></label><label>{t('role')}<select name="role"><option value="customer">{t('customer')}</option><option value="cook">{t('cook')}</option></select></label></>}<label>{t('email')}<input name="email" type="email" required placeholder={t('emailPlaceholder')} autoComplete="email" /></label><label className="password-field">
+      {page === 'auth' && <section className="auth-layout"><div className="auth-story"><div className="brand-symbol large brand-video">
+        <video autoPlay loop muted playsInline preload="auto" aria-label="Mom's Perisa animated logo">
+          <source src="/moms-perisa-logo.mp4" type="video/mp4" />
+        </video>
+      </div><div className="eyebrow">{t('tagline')}</div><h1>{t('authWelcome')}</h1><p>{t('authText')}</p><div className="auth-feature"><ShieldCheck size={19} /> {t('privacyNote')}</div></div><div className="auth-card"><div className="auth-tabs"><button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); setError(''); }}>{t('signIn')}</button><button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); setError(''); }}>{t('signUp')}</button></div><h2>{authMode === 'signin' ? t('signIn') : t('signUp')}</h2><form onSubmit={handleAuth} className="form-stack">{authMode === 'signup' && <><label>{t('fullName')}<input name="displayName" required minLength="2" /></label><label>{t('role')}<select name="role"><option value="customer">{t('customer')}</option><option value="cook">{t('cook')}</option></select></label></>}<label>{t('email')}<input name="email" type="email" required placeholder={t('emailPlaceholder')} autoComplete="email" /></label><label className="password-field">
   {t('password')}
   <span className="password-input-wrap">
     <input
@@ -1071,7 +1079,11 @@ if (active && !queryError) {
       {user && ((page === 'admin' && !isAdmin) || (page === 'cook' && !isCook) || (page === 'orders' && role !== 'customer')) && <section className="empty-state"><ShieldCheck size={34} /><h3>{t('noPermission')}</h3><button className="primary-button" onClick={() => changePage('discover')}>{t('backHome')}</button></section>}
     </main>
 
-    <footer className="site-footer"><div className="footer-brand"><span className="brand-symbol"><Leaf size={18} /></span><span><strong>mom's perisa</strong><small>{t('tagline')}</small></span></div><p>{t('introBody')}</p><small>© 2026 Mom’s Perisa · Version 1</small></footer>
+    <footer className="site-footer"><div className="footer-brand"><span className="brand-symbol brand-video">
+      <video autoPlay loop muted playsInline preload="auto" aria-label="Mom's Perisa animated logo">
+        <source src="/moms-perisa-logo.mp4" type="video/mp4" />
+      </video>
+    </span><span><strong>mom's perisa</strong><small>{t('tagline')}</small></span></div><p>{t('introBody')}</p><small>© 2026 Mom’s Perisa · Version 1</small></footer>
 
     {selectedDish && !orderDish && <DishDetails dish={selectedDish} reviews={reviews} t={t} onClose={() => setSelectedDish(null)} onOrder={() => openOrderSheet(selectedDish)} />}
     {selectedKitchen && !orderDish && (
