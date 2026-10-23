@@ -73,31 +73,33 @@ export default function App() {
   const notify = useCallback((message) => { setNotice(message); window.setTimeout(() => setNotice(''), 3600); }, []);
 
 
-const playNotificationSound = useCallback(() => {
-  console.log('[MP Sound] Function called. Enabled:', soundEnabled);
 
-  if (!soundEnabled) {
-    console.warn('[MP Sound] Sound is disabled.');
-    return;
-  }
+  const playNotificationSound = useCallback(() => {
+    console.log('[MP Sound] Function called. Enabled:', soundEnabled);
+
+    if (!soundEnabled) {
+      console.warn('[MP Sound] Sound is disabled.');
+      return;
+    }
+
+    const audio = new Audio('/sounds/moms-perisa-notification.mp3');
+    audio.volume = 0.7;
+
+    audio.play()
+      .then(() => console.log('[MP Sound] Playback started.'))
+      .catch((error) => {
+        console.error('[MP Sound] Playback failed:', error);
+      });
+  }, [soundEnabled]);
 
   const toggleNotificationSound = useCallback(() => {
-  setSoundEnabled((current) => {
-    const next = !current;
-    localStorage.setItem('mp-sound-enabled', String(next));
-    return next;
-  });
-}, []); 
-
-  const audio = new Audio('/sounds/moms-perisa-notification.mp3');
-  audio.volume = 0.7;
-
-  audio.play()
-    .then(() => console.log('[MP Sound] Playback started.'))
-    .catch((error) => {
-      console.error('[MP Sound] Playback failed:', error);
+    setSoundEnabled((current) => {
+      const next = !current;
+      localStorage.setItem('mp-sound-enabled', String(next));
+      return next;
     });
-}, [soundEnabled]);
+  }, []);
+
 
 
   const refreshData = useCallback(async () => {
