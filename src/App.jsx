@@ -193,7 +193,11 @@ const playNotificationSound = useCallback(() => {
     async function loadPublicDishes() {
       if (!hasSupabase) return;
       const { data, error: queryError } = await supabase.from('dishes').select('*, profiles!dishes_cook_id_fkey(display_name,kitchen_name,kitchen_image_url,kitchen_location,kitchen_description,hygiene_review_status,hygiene_last_updated_at,hygiene_pending_since)').eq('status', 'approved').eq('available', true).gt('portions_available', 0).order('created_at', { ascending: false });
-      if (active && !queryError) {
+      if (queryError) {
+  console.error('[Mom’s Perisa] Failed to load public dishes:', queryError);
+}
+
+if (active && !queryError) {
   setDishes((data || []).map(d => ({
     ...d,
     cook_name: d.profiles?.kitchen_name || d.profiles?.display_name || 'Home cook',
