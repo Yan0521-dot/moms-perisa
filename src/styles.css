@@ -868,3 +868,30 @@
     white-space: normal;
   }
 }
+
+
+/* Mom's Perisa — mission, vision and story theme fix */
+
+.mp-purpose-card,
+.mp-story-card {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+.mp-purpose-card h3,
+.mp-purpose-card p,
+.mp-story-card h2,
+.mp-story-card p,
+.mp-story-ending,
+.mp-story-note {
+  color: var(--text);
+}
+
+.mp-story-note {
+  color: var(--muted);
+}
+
+.mp-purpose-icon {
+  background: var(--surface-2);
+}
