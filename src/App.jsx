@@ -81,6 +81,14 @@ const playNotificationSound = useCallback(() => {
     return;
   }
 
+  const toggleNotificationSound = useCallback(() => {
+  setSoundEnabled((current) => {
+    const next = !current;
+    localStorage.setItem('mp-sound-enabled', String(next));
+    return next;
+  });
+}, []); 
+
   const audio = new Audio('/sounds/moms-perisa-notification.mp3');
   audio.volume = 0.7;
 
@@ -582,6 +590,24 @@ if (active && !queryError) {
         {!user && <button onClick={() => { setAuthMode('signup'); changePage('auth'); }}>{t('becomeCook')}</button>}
       </nav>
       <div className="header-tools">
+        <button
+  type="button"
+  className="theme-toggle"
+  onClick={() => {
+    if (!soundEnabled) {
+      toggleNotificationSound();
+      // The click also counts as a user interaction, allowing
+      // the browser to permit audio playback in many cases.
+      setTimeout(() => playNotificationSound(), 0);
+    } else {
+      toggleNotificationSound();
+    }
+  }}
+  aria-label={soundEnabled ? 'Turn notification sound off' : 'Turn notification sound on'}
+  title={soundEnabled ? 'Notification sound: on' : 'Notification sound: off'}
+>
+  {soundEnabled ? '🔔' : '🔕'}
+</button>
         {user && (isCook || role === 'customer') && <button className="notification-nav-button" onClick={() => changePage(isCook ? 'cook' : 'orders')} aria-label={t('notifications')} title={t('notifications')}><Bell size={16}/>{notifications.filter(n => !n.read_at).length > 0 && <span>{notifications.filter(n => !n.read_at).length > 9 ? '9+' : notifications.filter(n => !n.read_at).length}</span>}</button>}
         <label className="language-control" title={t('language')}><Globe2 size={16} /><select value={lang} onChange={e => setLang(e.target.value)} aria-label={t('language')}>{languages.map(l => <option key={l.code} value={l.code}>{l.native}</option>)}</select><ChevronDown size={13} /></label>
         <button className="theme-toggle" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={t('theme')} title={theme === 'light' ? t('dark') : t('light')}>{theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}</button>
