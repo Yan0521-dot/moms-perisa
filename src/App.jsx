@@ -28,6 +28,9 @@ export default function App() {
   const [pendingDishes, setPendingDishes] = useState([]);
   const [hygieneSubmissions, setHygieneSubmissions] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [soundEnabled, setSoundEnabled] = useState(
+  () => localStorage.getItem('mp-sound-enabled') !== 'false'
+);
   const [reviews, setReviews] = useState([]);
   const [phasesOpen, setPhasesOpen] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -68,6 +71,16 @@ export default function App() {
   }, []);
 
   const notify = useCallback((message) => { setNotice(message); window.setTimeout(() => setNotice(''), 3600); }, []);
+
+  const playNotificationSound = useCallback(() => {
+  if (!soundEnabled) return;
+
+  const audio = new Audio('/sounds/moms-perisa-notification.mp3');
+  audio.volume = 0.7;
+  audio.play().catch(() => {
+    // Browsers may block audio until the user interacts with the page.
+  });
+}, [soundEnabled]);
 
   const refreshData = useCallback(async () => {
     if (!hasSupabase || !user) {
@@ -145,11 +158,14 @@ export default function App() {
       channel = supabase
         .channel(`momperisa-live-${user.id}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { refreshData(); })
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${user.id}` }, () => { refreshData(); })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${user.id}` }, () => {
+  playNotificationSound();
+  refreshData();
+})
         .subscribe();
     } catch (e) { channel = null; }
     return () => { if (channel) supabase.removeChannel(channel); };
-  }, [user?.id, refreshData]);
+  }, [user?.id, refreshData, playNotificationSound]);
 
   useEffect(() => {
     let active = true;
@@ -696,7 +712,7 @@ export default function App() {
     </a>
   </section>
 </section>}
-     
+
 
       {page === 'auth' && <section className="auth-layout"><div className="auth-story"><div className="brand-symbol large"><Leaf size={30} /></div><div className="eyebrow">{t('tagline')}</div><h1>{t('authWelcome')}</h1><p>{t('authText')}</p><div className="auth-feature"><ShieldCheck size={19} /> {t('privacyNote')}</div></div><div className="auth-card"><div className="auth-tabs"><button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); setError(''); }}>{t('signIn')}</button><button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); setError(''); }}>{t('signUp')}</button></div><h2>{authMode === 'signin' ? t('signIn') : t('signUp')}</h2><form onSubmit={handleAuth} className="form-stack">{authMode === 'signup' && <><label>{t('fullName')}<input name="displayName" required minLength="2" /></label><label>{t('role')}<select name="role"><option value="customer">{t('customer')}</option><option value="cook">{t('cook')}</option></select></label></>}<label>{t('email')}<input name="email" type="email" required placeholder={t('emailPlaceholder')} autoComplete="email" /></label><label className="password-field">
   {t('password')}
