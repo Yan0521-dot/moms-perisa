@@ -4,3 +4,7 @@ dist/
 .env.*
 !.env.example
 .DS_Store
+
+# Local backups and temporary Supabase CLI files
+*.bak
+supabase/.temp/

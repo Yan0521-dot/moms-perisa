@@ -42,6 +42,8 @@ export default function App() {
   const [allOrders, setAllOrders] = useState([]);
   const [mobileNav, setMobileNav] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
   const [selectedDish, setSelectedDish] = useState(null);
   const [selectedKitchen, setSelectedKitchen] = useState(null);
   const [orderDish, setOrderDish] = useState(null);
@@ -100,6 +102,133 @@ export default function App() {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkPushSubscription = async () => {
+      if (!user || role !== 'customer' || !('serviceWorker' in navigator)) {
+        setPushEnabled(false);
+        return;
+      }
+
+      try {
+        const registration = await navigator.serviceWorker.getRegistration('/');
+        const subscription = registration
+          ? await registration.pushManager.getSubscription()
+          : null;
+
+        if (!cancelled) {
+          setPushEnabled(Boolean(subscription));
+        }
+      } catch (err) {
+        console.error('[Mom’s Perisa] Could not check push subscription:', err);
+        if (!cancelled) setPushEnabled(false);
+      }
+    };
+
+    checkPushSubscription();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, role]);
+
+  const togglePushNotifications = useCallback(async () => {
+    if (!user || !hasSupabase) {
+      notify('Please sign in before enabling push notifications.');
+      return;
+    }
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      notify('This browser does not support push notifications.');
+      return;
+    }
+
+    setPushBusy(true);
+
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+
+      if (pushEnabled) {
+        const subscription = await registration.pushManager.getSubscription();
+
+        if (subscription) {
+          const { error: deleteError } = await supabase
+            .from('push_subscriptions')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('endpoint', subscription.endpoint);
+
+          if (deleteError) throw deleteError;
+
+          await subscription.unsubscribe();
+        }
+
+        setPushEnabled(false);
+        notify('Push notifications disabled on this device.');
+        return;
+      }
+
+      let permission = Notification.permission;
+
+      if (permission !== 'granted') {
+        permission = await Notification.requestPermission();
+      }
+
+      if (permission !== 'granted') {
+        notify('Notifications were not allowed. Check this site’s browser permissions and try again.');
+        return;
+      }
+
+      const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+
+      if (!publicKey) {
+        throw new Error('The public VAPID key is missing from this deployment.');
+      }
+
+      const base64ToUint8Array = (value) => {
+        const padding = '='.repeat((4 - (value.length % 4)) % 4);
+        const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = window.atob(base64);
+        return Uint8Array.from(raw, (character) => character.charCodeAt(0));
+      };
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64ToUint8Array(publicKey),
+      });
+
+      const subscriptionJson = subscription.toJSON();
+      const p256dh = subscriptionJson.keys?.p256dh;
+      const auth = subscriptionJson.keys?.auth;
+
+      if (!p256dh || !auth) {
+        throw new Error('The browser did not return the required push subscription keys.');
+      }
+
+      const { error: saveError } = await supabase
+        .from('push_subscriptions')
+        .upsert({
+          user_id: user.id,
+          endpoint: subscription.endpoint,
+          p256dh,
+          auth,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'endpoint' });
+
+      if (saveError) throw saveError;
+
+      setPushEnabled(true);
+      notify('Push notifications enabled on this device.');
+    } catch (err) {
+      console.error('[Mom’s Perisa] Push notification setup failed:', err);
+      notify(err?.message || 'Could not update push notification settings.');
+    } finally {
+      setPushBusy(false);
+    }
+  }, [user, pushEnabled, notify]);
+
 
 
 
@@ -679,6 +808,23 @@ if (active && !queryError) {
               {soundEnabled ? 'On' : 'Off'}
             </span>
           </button>
+
+          {user && role === 'customer' && (
+            <button
+              type="button"
+              className="settings-menu-item"
+              disabled={pushBusy}
+              onClick={togglePushNotifications}
+            >
+              <span>
+                <Bell size={16} />
+                {pushBusy ? 'Updating push notifications…' : 'Push notifications'}
+              </span>
+              <span className="settings-value">
+                {pushEnabled ? 'On' : 'Off'}
+              </span>
+            </button>
+          )}
 
           {user && (isCook || role === 'customer') && (
             <button
