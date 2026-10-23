@@ -546,3 +546,148 @@
     box-shadow: none;
   }
 }
+
+
+/* Mom's Perisa customer receipt */
+.printable-receipt {
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid var(--border, #dedede);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  color: var(--text, #222);
+  min-width: 0;
+}
+
+.receipt-brand {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.printable-receipt h2 {
+  margin: 8px 0;
+}
+
+.receipt-thank-you,
+.receipt-footer {
+  color: var(--muted, #666);
+  font-size: .92rem;
+}
+
+.receipt-meta {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.receipt-meta > div,
+.receipt-item,
+.receipt-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.receipt-meta span {
+  color: var(--muted, #666);
+}
+
+.receipt-meta strong,
+.receipt-item strong,
+.receipt-total strong {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.printable-receipt h3 {
+  margin: 18px 0 10px;
+}
+
+.receipt-items {
+  display: grid;
+  gap: 10px;
+}
+
+.receipt-item {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border, #dedede);
+}
+
+.receipt-item span {
+  overflow-wrap: anywhere;
+}
+
+.receipt-total {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 2px solid var(--border, #999);
+  font-size: 1.08rem;
+}
+
+.receipt-details {
+  margin-top: 18px;
+  font-size: .92rem;
+  overflow-wrap: anywhere;
+}
+
+.receipt-details p {
+  margin: 8px 0;
+}
+
+.receipt-footer {
+  margin-top: 20px;
+}
+
+.receipt-actions {
+  margin-top: 18px;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .receipt-print-target,
+  .receipt-print-target * {
+    visibility: visible !important;
+  }
+
+  .receipt-print-target {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    color: #111 !important;
+    box-shadow: none !important;
+    z-index: 999999 !important;
+    break-inside: avoid;
+  }
+
+  .receipt-actions,
+  .review-form,
+  .receipt-confirm,
+  .status-badge,
+  .order-icon {
+    display: none !important;
+  }
+
+  .receipt-print-target h2,
+  .receipt-print-target h3,
+  .receipt-print-target p,
+  .receipt-print-target span,
+  .receipt-print-target strong,
+  .receipt-print-target div {
+    color: #111 !important;
+  }
+
+  .receipt-print-target .receipt-item,
+  .receipt-print-target .receipt-total {
+    border-color: #bbb !important;
+  }
+}

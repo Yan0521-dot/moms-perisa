@@ -1430,7 +1430,7 @@ function CookDashboard({ t, user, profile, application, dishes, orders, hygieneS
     {tab === 'application' && <div className="content-card"><div className="card-heading"><div><h2>{t('application')}</h2><p>{t('applicationHelp')}</p></div><span className={`status-badge ${appStatus}`}>{statusText}</span></div>{application?.rejection_reason && <div className="review-feedback"><strong>{t('rejectionReason')}</strong><p>{application.rejection_reason}</p><small>{t('resubmitHelp')}</small></div>}<form className="form-grid" onSubmit={onApplicationSubmit}><label className="span-two">{t('ssm')} *<input name="ssmNumber" required defaultValue={application?.ssm_number || ''} /></label><FileInput label={t('ssmDocument')} name="ssmFile" existing={application?.ssm_file_path} t={t} /><FileInput label={t('hygiene')} name="hygieneFile" existing={application?.hygiene_file_path} t={t} accept="image/jpeg,image/png" helpKey="hygieneImageRules" /><label className="span-two">{t('hygieneNotes')}<textarea name="hygieneNotes" rows="4" maxLength="1000" defaultValue={application?.hygiene_notes || ''} placeholder={t('photoPrivacy')} /></label><p className="form-help span-two">{t('supportedFiles')} · {t('photoPrivacy')} {t('termsNote')}</p><button className="primary-button span-two" disabled={busy || appStatus === 'pending' || appStatus === 'approved'}>{busy ? t('saving') : t('submitApplication')} <ArrowRight size={17} /></button></form><div className="safety-callout"><CircleAlert size={18} /><p>{t('foodSafetyText')}</p></div></div>}
     {tab === 'application' && appApproved && <div className="content-card hygiene-update-card"><div className="card-heading"><div><h2>{t('hygieneEveryThreeDays')}</h2><p>{t('hygieneUpdateHelp')}</p></div></div><form className="form-grid" onSubmit={onSubmitHygiene}><FileInput label={t('hygieneEvidence')} name="hygieneFile" t={t} accept="image/jpeg,image/png" helpKey="hygieneImageRules"/><label>{t('hygieneNotes')}<textarea name="notes" rows="3" maxLength="1000"/></label><button className="primary-button span-two" disabled={busy}>{busy ? t('saving') : t('submitHygieneUpdate')} <ArrowRight size={17}/></button></form>{hygieneSubmissions?.length > 0 && <div className="hygiene-history"><strong>{t('hygieneHistory')}</strong>{hygieneSubmissions.slice(0,3).map(h => <div className="hygiene-history-row" key={h.id}><span>{new Date(h.submitted_at).toLocaleString()}</span><span className={`hygiene-status-pill ${h.status}`}>{t(h.status) || h.status}</span>{h.review_note && <small>{h.review_note}</small>}</div>)}</div>}</div>}
     {tab === 'menu' && <div className="menu-layout"><div className="content-card"><h2>{t(editingDish ? 'editDish' : 'addDish')}</h2><p className="muted-note">{t('imageOptional')}</p><form key={editingDish?.id || 'new-dish'} onSubmit={onAddDish} className="form-stack"><label>{t('dishName')} *<input name="name" required maxLength="100" defaultValue={editingDish?.name || ''} /></label><label>{t('description')} *<textarea name="description" rows="3" required maxLength="1000" defaultValue={editingDish?.description || ''} /></label><label>{t('ingredients')}<textarea name="ingredients" rows="2" maxLength="1000" defaultValue={editingDish?.ingredients || ''} placeholder={t('ingredientsPlaceholder')} /></label><div className="form-two"><label>{t('price')} *<input name="price" type="number" min="0.50" step="0.10" required defaultValue={editingDish?.price || ''} /></label><label>{t('available')} *<input name="portions" type="number" min="1" max="500" required defaultValue={editingDish?.portions_available || 5} /></label></div><label>{t('category')}<select name="category" defaultValue={editingDish?.category || 'mains'}><option value="rice">{t('rice')}</option><option value="mains">{t('mains')}</option><option value="desserts">{t('desserts')}</option><option value="vegetarian">{t('vegetarian')}</option></select></label><label>{t('foodImage')} *<input name="foodImage" type="file" accept="image/jpeg,image/png,image/webp"/><small className="form-help">{t('foodImageRules')}</small></label><label>{t('imageUrl')}<input name="imageUrl" type="url" placeholder="https://…" /></label><button className="primary-button" disabled={busy || !appApproved}>{busy ? t('saving') : t(editingDish ? 'saveChanges' : 'addDishAction')} <Plus size={17} /></button>{!appApproved && <small className="form-help">{t('submitApplicationFirst')}</small>}</form></div><div className="content-card"><div className="card-heading"><h2>{t('myDishes')}</h2><span className="count-pill">{dishes.length}</span></div>{dishes.length ? <div className="own-dish-list">{dishes.map(d => <div className="own-dish" key={d.id}>{d.image_url ? <img src={d.image_url} alt="" /> : <div className="own-dish-placeholder"><Utensils size={18} /></div>}<div><strong>{d.name}</strong><small>{money(d.price)} · {t('availableLabel')}: {d.portions_available}</small>{d.moderation_note && <small className="form-help">{t('rejectionReason')}: {d.moderation_note}</small>}</div><span className={`status-badge ${d.status}`}>{d.status === 'approved' ? t('approved') : d.status === 'rejected' ? t('rejected') : t('underReview')}</span><button className="outline-button" onClick={() => { setEditingDish(d); setTab('menu'); }} type="button">{t('editDish')}</button></div>)}</div> : <div className="mini-empty"><Utensils size={24} /><p>{t('noMyDishes')}</p></div>}</div></div>}
-    {tab === 'orders' && <div className="content-card"><h2>{t('pendingOrders')}</h2>{orders.length ? <div className="table-wrap"><table><thead><tr><th>{t('customerName')}</th><th>{t('orders')}</th><th>{t('date')}</th><th>{t('status')}</th><th>{t('view')}</th></tr></thead><tbody>{orders.map(o => <tr key={o.id}><td>{o.customer_display_name || o.customer_name || o.customer_id}</td><td>{(o.order_items || []).map(i => `${i.quantity} × ${i.dish_name}`).join(', ')}</td><td>{o.preferred_date || new Date(o.created_at).toLocaleDateString()}</td><td><span className={`status-badge ${o.status}`}>{t(o.status) || o.status}</span></td><td><OrderActions order={o} t={t} onUpdateOrder={onUpdateOrder} /></td></tr>)}</tbody></table></div> : <div className="mini-empty"><PackageCheck size={26} /><p>{t('empty')}</p></div>}</div>}
+    {tab === 'orders' && <div className="content-card"><h2>{t('pendingOrders')}</h2>{orders.length ? <div className="table-wrap"><table><thead><tr><th>{t('customerName')}</th><th>{t('orders')}</th><th>{t('date')}</th><th>{t('status')}</th><th>{t('view')}</th></tr></thead><tbody>{orders.map(o => <tr key={o.id}><td>{o.customer_display_name || o.customer_name || o.customer_id}</td><td><div>{(o.order_items || []).map(i => `${i.quantity} × ${i.dish_name}`).join(', ')}</div>{o.customer_note?.trim() && <small className="order-customer-note"><strong>{t('deliveryNote')}:</strong> {o.customer_note}</small>}</td><td>{o.preferred_date || new Date(o.created_at).toLocaleDateString()}</td><td><span className={`status-badge ${o.status}`}>{t(o.status) || o.status}</span></td><td><OrderActions order={o} t={t} onUpdateOrder={onUpdateOrder} /></td></tr>)}</tbody></table></div> : <div className="mini-empty"><PackageCheck size={26} /><p>{t('empty')}</p></div>}</div>}
   </section>;
 }
 
@@ -1452,13 +1452,136 @@ function OrderActions({ order, t, onUpdateOrder }) {
 function CustomerOrders({ t, orders, busy, onConfirmReceived, onSubmitReview, notifications, onReadNotification }) {
   const [ratings, setRatings] = useState({});
   const [comments, setComments] = useState({});
-  return <section className="dashboard-page"><div className="page-heading"><div><div className="eyebrow">{t('myDashboard')}</div><h1>{t('orderHistory')}</h1><p>{t('orderInstructions')}</p></div></div>
-    {notifications?.length > 0 && <div className="content-card"><div className="card-heading"><h2>{t('notifications')}</h2><span className="count-pill">{notifications.filter(n => !n.read_at).length}</span></div><div className="notification-list">{notifications.slice(0,8).map(n => <button key={n.id} className={`notification-row ${n.read_at ? 'read' : ''}`} onClick={() => !n.read_at && onReadNotification(n)}><span className="notification-dot"/><span><strong>{n.title}</strong><small>{n.body}</small><small>{new Date(n.created_at).toLocaleString()}</small></span></button>)}</div></div>}
-    <div className="content-card">{orders.length ? <div className="order-list">{orders.map(o => <article className="order-row customer-order-card" key={o.id}><div className="order-icon"><ShoppingBag size={20}/></div><div className="order-summary"><strong>{(o.order_items || []).map(i => `${i.quantity} × ${i.dish_name}`).join(', ') || 'Pre-order'}</strong><small>{t('orderReference')}: {String(o.id).slice(0,12)} · {o.preferred_date || new Date(o.created_at).toLocaleDateString()}</small><small>{t('paymentInfo')}: {t('externalPayment')}</small>
-      {o.status === 'handed_over' && o.customer_received_confirmation == null && <div className="receipt-confirm"><strong>{t('didYouReceive')}</strong><div className="review-actions"><button className="outline-button" disabled={busy} onClick={() => onConfirmReceived(o,true)}>{t('yesReceived')}</button><button className="danger-button" disabled={busy} onClick={() => onConfirmReceived(o,false)}>{t('notReceived')}</button></div></div>}
-      {o.customer_received_confirmation === false && <p className="review-feedback">{t('receiptIssueSent')}</p>}
-      {o.customer_received_confirmation === true && !o.reviews?.length && <div className="review-form"><strong>{t('leaveReview')}</strong><label>{t('rating')}<select value={ratings[o.id] || '5'} onChange={e => setRatings(old => ({...old,[o.id]:Number(e.target.value)}))}><option value="5">5 ★</option><option value="4">4 ★</option><option value="3">3 ★</option><option value="2">2 ★</option><option value="1">1 ★</option></select></label><label>{t('reviewComment')}<textarea rows="2" value={comments[o.id] || ''} onChange={e => setComments(old => ({...old,[o.id]:e.target.value}))} maxLength="1000"/></label><button className="primary-button" disabled={busy} onClick={() => onSubmitReview(o, ratings[o.id] || 5, comments[o.id] || '')}>{t('sendReview')}</button></div>}
-      {o.reviews?.length > 0 && <small>{t('reviewSent')}</small>}</div><span className={`status-badge ${o.status}`}>{t(o.status) || o.status}</span><strong>{money(o.total_amount)}</strong></article>)}</div> : <div className="mini-empty"><ShoppingBag size={26}/><p>{t('noOrders')}</p></div>}</div></section>;
+  const [printingOrderId, setPrintingOrderId] = useState(null);
+
+  useEffect(() => {
+    if (!printingOrderId) return undefined;
+
+    const handleAfterPrint = () => setPrintingOrderId(null);
+    window.addEventListener('afterprint', handleAfterPrint);
+    const frame = window.requestAnimationFrame(() => window.print());
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, [printingOrderId]);
+
+  return <section className="dashboard-page">
+    <div className="page-heading">
+      <div>
+        <div className="eyebrow">{t('myDashboard')}</div>
+        <h1>{t('orderHistory')}</h1>
+        <p>{t('orderInstructions')}</p>
+      </div>
+    </div>
+
+    {notifications?.length > 0 && <div className="content-card">
+      <div className="card-heading">
+        <h2>{t('notifications')}</h2>
+        <span className="count-pill">{notifications.filter(n => !n.read_at).length}</span>
+      </div>
+      <div className="notification-list">
+        {notifications.slice(0, 8).map(n => <button
+          key={n.id}
+          className={`notification-row ${n.read_at ? 'read' : ''}`}
+          onClick={() => !n.read_at && onReadNotification(n)}
+        >
+          <span className="notification-dot" />
+          <span>
+            <strong>{n.title}</strong>
+            <small>{n.body}</small>
+            <small>{new Date(n.created_at).toLocaleString()}</small>
+          </span>
+        </button>)}
+      </div>
+    </div>}
+
+    <div className="content-card">
+      {orders.length ? <div className="order-list">
+        {orders.map(o => <article className="order-row customer-order-card" key={o.id}>
+          <div className="order-icon"><ShoppingBag size={20} /></div>
+
+          <div className="order-summary">
+            <strong>{(o.order_items || []).map(i => `${i.quantity} × ${i.dish_name}`).join(', ') || 'Pre-order'}</strong>
+            <small>{t('orderReference')}: {String(o.id).slice(0, 12)} · {o.preferred_date || new Date(o.created_at).toLocaleDateString()}</small>
+            <small>{t('paymentInfo')}: {t('externalPayment')}</small>
+
+            {o.status === 'handed_over' && o.customer_received_confirmation == null && <div className="receipt-confirm">
+              <strong>{t('didYouReceive')}</strong>
+              <div className="review-actions">
+                <button className="outline-button" disabled={busy} onClick={() => onConfirmReceived(o, true)}>{t('yesReceived')}</button>
+                <button className="danger-button" disabled={busy} onClick={() => onConfirmReceived(o, false)}>{t('notReceived')}</button>
+              </div>
+            </div>}
+
+            {o.customer_received_confirmation === false && <p className="review-feedback">{t('receiptIssueSent')}</p>}
+
+            {o.customer_received_confirmation === true && <div className={`printable-receipt ${printingOrderId === o.id ? 'receipt-print-target' : ''}`}>
+              <div className="receipt-brand">Mom’s Perisa</div>
+              <h2>{t('receiptTitle')}</h2>
+              <p className="receipt-thank-you">{t('receiptThankYou')}</p>
+
+              <div className="receipt-meta">
+                <div><span>{t('orderReference')}</span><strong>{String(o.id).slice(0, 12)}</strong></div>
+                <div><span>{t('receiptDate')}</span><strong>{new Date(o.created_at).toLocaleString()}</strong></div>
+                <div><span>{t('receiptConfirmation')}</span><strong>{t('receiptConfirmed')}</strong></div>
+              </div>
+
+              <h3>{t('receiptItems')}</h3>
+              <div className="receipt-items">
+                {(o.order_items || []).map(item => <div className="receipt-item" key={item.id || `${item.dish_name}-${item.quantity}`}>
+                  <span>{item.quantity} × {item.dish_name}</span>
+                  <strong>{money(Number(item.unit_price || 0) * Number(item.quantity || 0))}</strong>
+                </div>)}
+              </div>
+
+              <div className="receipt-total">
+                <span>{t('receiptTotal')}</span>
+                <strong>{money(o.total_amount)}</strong>
+              </div>
+
+              <div className="receipt-details">
+                <p><strong>{t('receiptFulfilment')}:</strong> {o.fulfilment_method === 'pickup' ? t('pickup') : t('arrange')}</p>
+                <p><strong>{t('receiptAddressNote')}:</strong> {o.customer_note?.trim() || t('receiptNotProvided')}</p>
+                <p><strong>{t('receiptPayment')}:</strong> {t('receiptExternalPayment')}</p>
+              </div>
+
+              <p className="receipt-footer">{t('receiptThankYou')}</p>
+
+              <div className="receipt-actions">
+                <button className="primary-button" onClick={() => setPrintingOrderId(o.id)}>
+                  {t('printReceipt')}
+                </button>
+              </div>
+            </div>}
+
+            {o.customer_received_confirmation === true && !o.reviews?.length && <div className="review-form">
+              <strong>{t('leaveReview')}</strong>
+              <label>{t('rating')}
+                <select value={ratings[o.id] || '5'} onChange={e => setRatings(old => ({ ...old, [o.id]: Number(e.target.value) }))}>
+                  <option value="5">5 ★</option>
+                  <option value="4">4 ★</option>
+                  <option value="3">3 ★</option>
+                  <option value="2">2 ★</option>
+                  <option value="1">1 ★</option>
+                </select>
+              </label>
+              <label>{t('reviewComment')}
+                <textarea rows="2" value={comments[o.id] || ''} onChange={e => setComments(old => ({ ...old, [o.id]: e.target.value }))} maxLength="1000" />
+              </label>
+              <button className="primary-button" disabled={busy} onClick={() => onSubmitReview(o, ratings[o.id] || 5, comments[o.id] || '')}>{t('sendReview')}</button>
+            </div>}
+
+            {o.reviews?.length > 0 && <small>{t('reviewSent')}</small>}
+          </div>
+
+          <span className={`status-badge ${o.status}`}>{t(o.status) || o.status}</span>
+          <strong>{money(o.total_amount)}</strong>
+        </article>)}
+      </div> : <div className="mini-empty"><ShoppingBag size={26} /><p>{t('noOrders')}</p></div>}
+    </div>
+  </section>;
 }
 
 function AdminDashboard({ t, applications, orders, pendingDishes, hygieneSubmissions, busy, onReview, onReviewDish, onReviewHygiene, onUpdateOrder }) {
