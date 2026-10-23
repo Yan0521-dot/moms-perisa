@@ -72,15 +72,25 @@ export default function App() {
 
   const notify = useCallback((message) => { setNotice(message); window.setTimeout(() => setNotice(''), 3600); }, []);
 
-  const playNotificationSound = useCallback(() => {
-  if (!soundEnabled) return;
+
+const playNotificationSound = useCallback(() => {
+  console.log('[MP Sound] Function called. Enabled:', soundEnabled);
+
+  if (!soundEnabled) {
+    console.warn('[MP Sound] Sound is disabled.');
+    return;
+  }
 
   const audio = new Audio('/sounds/moms-perisa-notification.mp3');
   audio.volume = 0.7;
-  audio.play().catch(() => {
-    // Browsers may block audio until the user interacts with the page.
-  });
+
+  audio.play()
+    .then(() => console.log('[MP Sound] Playback started.'))
+    .catch((error) => {
+      console.error('[MP Sound] Playback failed:', error);
+    });
 }, [soundEnabled]);
+
 
   const refreshData = useCallback(async () => {
     if (!hasSupabase || !user) {
@@ -157,11 +167,22 @@ export default function App() {
     try {
       channel = supabase
         .channel(`momperisa-live-${user.id}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { refreshData(); })
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${user.id}` }, () => {
-  playNotificationSound();
-  refreshData();
-})
+        
+.on(
+  'postgres_changes',
+  {
+    event: 'INSERT',
+    schema: 'public',
+    table: 'notifications',
+    filter: `recipient_id=eq.${user.id}`
+  },
+  (payload) => {
+    console.log('[MP Realtime] Notification received:', payload);
+    playNotificationSound();
+    refreshData();
+  }
+)
+
         .subscribe();
     } catch (e) { channel = null; }
     return () => { if (channel) supabase.removeChannel(channel); };
