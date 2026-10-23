@@ -41,6 +41,7 @@ export default function App() {
   const [myOrders, setMyOrders] = useState([]);
   const [allOrders, setAllOrders] = useState([]);
   const [mobileNav, setMobileNav] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedDish, setSelectedDish] = useState(null);
   const [selectedKitchen, setSelectedKitchen] = useState(null);
   const [orderDish, setOrderDish] = useState(null);
@@ -579,43 +580,170 @@ if (active && !queryError) {
 
   return <div className="app-shell" data-theme={theme}>
     <div className="top-announcement"><SparklesIcon /> {t('tagline')} <span>·</span> {t('introTitle')}</div>
-    <header className="site-header">
-      <button className="brand" onClick={() => changePage('discover')} aria-label="Mom's Perisa home"><span className="brand-symbol"><Leaf size={21} /></span><span><strong>mom's perisa</strong><small>{t('tagline')}</small></span></button>
-      <button className="mobile-menu" onClick={() => setMobileNav(v => !v)} aria-label="Toggle navigation"><MenuIcon size={20} /></button>
-      <nav className={`site-nav ${mobileNav ? 'open' : ''}`}>
-        <button className={page === 'discover' ? 'active' : ''} onClick={() => changePage('discover')}>{t('discover')}</button>
-        {user && isCook && <button className={page === 'cook' ? 'active' : ''} onClick={() => changePage('cook')}>{t('myDashboard')}</button>}
-        {user && role === 'customer' && <button className={page === 'orders' ? 'active' : ''} onClick={() => changePage('orders')}>{t('orderHistory')}</button>}
-        {user && isAdmin && <button className={page === 'admin' ? 'active' : ''} onClick={() => changePage('admin')}>{t('adminReview')}</button>}
 
+<header className="site-header">
+  <button
+    className="brand"
+    onClick={() => changePage('discover')}
+    aria-label="Mom's Perisa home"
+  >
+    <span className="brand-symbol"><Leaf size={21} /></span>
+    <span>
+      <strong>mom's perisa</strong>
+      <small>{t('tagline')}</small>
+    </span>
+  </button>
 
-        {!user && <button onClick={() => { setAuthMode('signup'); changePage('auth'); }}>{t('becomeCook')}</button>}
-      </nav>
-      <div className="header-tools">
-        <button
-  type="button"
-  className="theme-toggle"
-  onClick={() => {
-    if (!soundEnabled) {
-      toggleNotificationSound();
-      // The click also counts as a user interaction, allowing
-      // the browser to permit audio playback in many cases.
-      setTimeout(() => playNotificationSound(), 0);
-    } else {
-      toggleNotificationSound();
-    }
-  }}
-  aria-label={soundEnabled ? 'Turn notification sound off' : 'Turn notification sound on'}
-  title={soundEnabled ? 'Notification sound: on' : 'Notification sound: off'}
->
-  {soundEnabled ? '🔔' : '🔕'}
-</button>
-        {user && (isCook || role === 'customer') && <button className="notification-nav-button" onClick={() => changePage(isCook ? 'cook' : 'orders')} aria-label={t('notifications')} title={t('notifications')}><Bell size={16}/>{notifications.filter(n => !n.read_at).length > 0 && <span>{notifications.filter(n => !n.read_at).length > 9 ? '9+' : notifications.filter(n => !n.read_at).length}</span>}</button>}
-        <label className="language-control" title={t('language')}><Globe2 size={16} /><select value={lang} onChange={e => setLang(e.target.value)} aria-label={t('language')}>{languages.map(l => <option key={l.code} value={l.code}>{l.native}</option>)}</select><ChevronDown size={13} /></label>
-        <button className="theme-toggle" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={t('theme')} title={theme === 'light' ? t('dark') : t('light')}>{theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}</button>
-        {user ? <button className="account-button" onClick={signOut}><LogOut size={16} /><span>{t('signOut')}</span></button> : <button className="account-button" onClick={() => changePage('auth')}><LogIn size={16} /><span>{t('signIn')}</span></button>}
-      </div>
-    </header>
+  <button
+    className="mobile-menu"
+    onClick={() => {
+      setMobileNav(v => !v);
+      setSettingsOpen(false);
+    }}
+    aria-label="Toggle navigation"
+    aria-expanded={mobileNav}
+  >
+    <MenuIcon size={20} />
+  </button>
+
+  <nav className={`site-nav ${mobileNav ? 'open' : ''}`}>
+    <button
+      className={page === 'discover' ? 'active' : ''}
+      onClick={() => changePage('discover')}
+    >
+      {t('discover')}
+    </button>
+
+    {user && isCook && (
+      <button
+        className={page === 'cook' ? 'active' : ''}
+        onClick={() => changePage('cook')}
+      >
+        {t('myDashboard')}
+      </button>
+    )}
+
+    {user && role === 'customer' && (
+      <button
+        className={page === 'orders' ? 'active' : ''}
+        onClick={() => changePage('orders')}
+      >
+        {t('orderHistory')}
+      </button>
+    )}
+
+    {user && isAdmin && (
+      <button
+        className={page === 'admin' ? 'active' : ''}
+        onClick={() => changePage('admin')}
+      >
+        {t('adminReview')}
+      </button>
+    )}
+
+    {!user && (
+      <button onClick={() => {
+        setAuthMode('signup');
+        changePage('auth');
+      }}>
+        {t('becomeCook')}
+      </button>
+    )}
+
+    <div className="nav-settings">
+      <button
+        className={`settings-menu-trigger ${settingsOpen ? 'active' : ''}`}
+        onClick={() => setSettingsOpen(v => !v)}
+        aria-expanded={settingsOpen}
+      >
+        <span>⚙️ Settings</span>
+        <ChevronDown size={15} />
+      </button>
+
+      {settingsOpen && (
+        <div className="settings-menu-panel">
+          <button
+            type="button"
+            className="settings-menu-item"
+            onClick={() => {
+              if (!soundEnabled) {
+                toggleNotificationSound();
+                setTimeout(() => playNotificationSound(), 0);
+              } else {
+                toggleNotificationSound();
+              }
+            }}
+          >
+            <span>{soundEnabled ? '🔔' : '🔕'} Notification sound</span>
+            <span className="settings-value">
+              {soundEnabled ? 'On' : 'Off'}
+            </span>
+          </button>
+
+          {user && (isCook || role === 'customer') && (
+            <button
+              type="button"
+              className="settings-menu-item"
+              onClick={() => {
+                changePage(isCook ? 'cook' : 'orders');
+                setSettingsOpen(false);
+              }}
+            >
+              <span>
+                <Bell size={16} />
+                Notifications
+              </span>
+              {notifications.filter(n => !n.read_at).length > 0 && (
+                <span className="settings-count">
+                  {notifications.filter(n => !n.read_at).length > 9
+                    ? '9+'
+                    : notifications.filter(n => !n.read_at).length}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  </nav>
+
+  <div className="header-tools">
+    <label className="language-control" title={t('language')}>
+      <Globe2 size={16} />
+      <select
+        value={lang}
+        onChange={e => setLang(e.target.value)}
+        aria-label={t('language')}
+      >
+        {languages.map(l => (
+          <option key={l.code} value={l.code}>{l.native}</option>
+        ))}
+      </select>
+      <ChevronDown size={13} />
+    </label>
+
+    <button
+      className="theme-toggle"
+      onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+      aria-label={t('theme')}
+      title={theme === 'light' ? t('dark') : t('light')}
+    >
+      {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
+    </button>
+
+    {user ? (
+      <button className="account-button" onClick={signOut}>
+        <LogOut size={16} />
+        <span>{t('signOut')}</span>
+      </button>
+    ) : (
+      <button className="account-button" onClick={() => changePage('auth')}>
+        <LogIn size={16} />
+        <span>{t('signIn')}</span>
+      </button>
+    )}
+  </div>
+</header>
 
     {error && <div className="global-alert error-alert"><CircleAlert size={17} /><span>{error}</span><button onClick={() => setError('')} aria-label={t('close')}><X size={16} /></button></div>}
     {hasSupabase && user && profileReady && !profile && <div className="global-alert error-alert"><CircleAlert size={17} /><span>{t('accountSetupIncomplete')}</span></div>}

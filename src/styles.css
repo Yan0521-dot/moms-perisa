@@ -452,3 +452,97 @@
     font-size: 36px;
   }
 }
+
+
+/* Settings inside the main navigation */
+.nav-settings {
+  position: relative;
+}
+
+.settings-menu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  padding: 11px 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.settings-menu-trigger:hover,
+.settings-menu-trigger.active {
+  background: var(--surface-2);
+  color: var(--green);
+}
+
+.settings-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: 260px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.settings-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+}
+
+.settings-menu-item > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.settings-menu-item:hover {
+  background: var(--surface-2);
+}
+
+.settings-value,
+.settings-count {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.settings-count {
+  min-width: 22px;
+  padding: 3px 6px;
+  border-radius: 20px;
+  background: var(--green-2);
+  text-align: center;
+}
+
+/* Mobile navigation */
+@media (max-width: 760px) {
+  .nav-settings {
+    width: 100%;
+  }
+
+  .settings-menu-panel {
+    position: static;
+    width: 100%;
+    margin-top: 5px;
+    box-shadow: none;
+  }
+}
