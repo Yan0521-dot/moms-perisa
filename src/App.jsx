@@ -1123,15 +1123,253 @@ function HygieneBadge({ t, status }) {
   return <span className={`hygiene-status-pill ${status}`}>{t(status === 'process' ? 'hygieneProcess' : status === 'updated' ? 'hygieneUpdated' : 'hygieneOutdated')}</span>;
 }
 
-function PhaseRoadmap({ t, open, onToggle }) {
+
+
+function PhaseRoadmap({ open, onToggle }) {
   const phases = [
-    { id: 1, title: t('phase1Title'), status: t('phase1Status'), summary: t('phase1Summary'), details: t('phase1Details') },
-    { id: 2, title: t('phase2Title'), status: t('phase2Status'), summary: t('phase2Summary'), details: t('phase2Details') },
-    { id: 3, title: t('phase3Title'), status: t('phase3Status'), summary: t('phase3Summary'), details: t('phase3Details') },
-    { id: 4, title: t('phase4Title'), status: t('phase4Status'), summary: t('phase4Summary'), details: t('phase4Details') },
+    {
+      id: "1",
+      title: "Phase 1 — The Foundation",
+      status: "CURRENT PHASE · FREE VERSION",
+      summary:
+        "Build a trusted home-cooking marketplace where customers and home cooks can connect online.",
+      details: [
+        "Customers discover home cooks, browse menus and prices, and place orders online.",
+        "Customers receive order-status updates and digital receipts.",
+        "Cooks customise their kitchen profiles, upload menus and prices, manage incoming orders, and update customers when food is being prepared or is ready.",
+        "Customers can leave reviews to help build trust and give cooks useful feedback.",
+        "Establish the foundation for a hygiene-conscious, accessible marketplace before introducing more complex financial features."
+      ]
+    },
+    {
+      id: "2",
+      title: "Phase 2 — Payments & Cook Earnings",
+      status: "PAID FEATURES · FINANCIAL FOUNDATION",
+      summary:
+        "Enable online payments and give every cook a transparent record of the real money they earn through Mom’s Perisa.",
+      details: [
+        "Customers pay online through a supported payment arrangement connected to Mom’s Perisa.",
+        "After the applicable payment and order conditions are met, the cook’s earnings are recorded as credits denominated in Malaysian ringgit.",
+        "The intended conversion is 1 credit = RM1.00. Credits represent money owed to the cook, not reward points.",
+        "Cooks can view their available balance, pending earnings, deductions, withdrawals, and transaction history.",
+        "Cooks can request withdrawals to their registered bank account. Our target is for funds to arrive within 15 minutes, subject to payment-provider and bank processing.",
+        "Cook dashboards introduce business statistics and performance insights.",
+        "The planned cook subscription is approximately RM5 per month, with fees and deductions clearly displayed.",
+        "Payment settlement, refunds, chargebacks, payout security, and applicable Malaysian requirements must be addressed before launching these features."
+      ]
+    },
+    {
+      id: "3",
+      title: "Phase 3 — Cook Community & Supplies",
+      status: "GROWTH & SUPPORT",
+      summary:
+        "Help home cooks grow their skills, stay motivated, and access useful food-related supplies.",
+      details: [
+        "Host a free monthly chef talk or sharing session where cooks can learn from one another and industry professionals.",
+        "Display upcoming sessions in the cook dashboard and provide a personal registration ticket.",
+        "Allow eligible cooks to use their available platform balance to purchase approved groceries and cooking supplies through Mom’s Perisa.",
+        "Show every purchase, deduction, and remaining balance clearly in the transaction history.",
+        "Build a supportive community where cooks can improve their food business, share experiences, and keep learning."
+      ]
+    },
+    {
+      id: "3.1",
+      title: "Phase 3.1 — Rider Pilot",
+      status: "DELIVERY EXPANSION",
+      summary:
+        "Pilot a delivery service that connects cooks, riders, and customers.",
+      details: [
+        "Create a rider dashboard for eligible delivery orders.",
+        "Allow approved riders to accept orders, collect food from the correct cook, and deliver it to the correct customer.",
+        "Track pickup, delivery, and handover status.",
+        "Introduce suitable order verification and delivery records.",
+        "Begin with a limited service area and expand only after checking delivery reliability, operating costs, food handling, and rider safety."
+      ]
+    },
+    {
+      id: "4",
+      title: "Phase 4 — A Thriving Home-Cooking Ecosystem",
+      status: "LONG-TERM VISION",
+      summary:
+        "Go beyond helping cooks receive orders: help them build sustainable businesses and strengthen their communities.",
+      details: [
+        "Introduce cook-growth programmes, practical business guidance, and learning resources.",
+        "Improve food discovery so customers can find cooks and dishes that match their preferences.",
+        "Explore customer loyalty features that reward genuine engagement and repeat orders.",
+        "Provide more advanced cook insights to help sellers understand demand, improve menus, and plan their businesses.",
+        "Expand to more communities only when quality, food-safety processes, payment operations, and delivery standards can be maintained.",
+        "Measure success through cook opportunities, customer trust, repeat orders, and the long-term growth of participating home-cooking businesses."
+      ]
+    }
   ];
-  return <section className="phase-section"><div className="section-heading"><div><div className="eyebrow">{t('roadmapEyebrow')}</div><h2>{t('roadmapTitle')}</h2><p>{t('roadmapIntro')}</p></div></div><div className="phase-grid">{phases.map(phase => <article className={`phase-card ${phase.id === 1 ? 'phase-current' : ''}`} key={phase.id}><button className="phase-toggle" onClick={() => onToggle(open === phase.id ? null : phase.id)} aria-expanded={open === phase.id}><span className="phase-number">{phase.id}</span><span className="phase-heading-copy"><strong>{phase.title}</strong><small>{phase.status}</small></span><ChevronDown className={open === phase.id ? 'rotated' : ''} size={18}/></button><p>{phase.summary}</p>{open === phase.id && <div className="phase-details">{phase.details}</div>}</article>)}</div></section>;
+
+  return (
+    <section className="phase-section mp-about-section" id="explore-more">
+      <div className="section-heading">
+        <div>
+          <div className="eyebrow">OUR PURPOSE & OUR JOURNEY</div>
+          <h2>More Than a Food Marketplace</h2>
+          <p>
+            We want to bring the comfort of home-cooked food closer to people
+            while helping the people behind every meal find an opportunity to grow.
+          </p>
+        </div>
+      </div>
+
+      <div className="mp-purpose-grid">
+        <article className="mp-purpose-card">
+          <span className="mp-purpose-icon">🎯</span>
+          <h3>Our Mission</h3>
+          <p>
+            To connect home cooks with customers through an accessible,
+            trusted, and hygiene-conscious digital platform—helping people
+            discover home-cooked meals while creating meaningful opportunities
+            for cooks to earn, grow, and share their talents.
+          </p>
+        </article>
+
+        <article className="mp-purpose-card">
+          <span className="mp-purpose-icon">🌱</span>
+          <h3>Our Vision</h3>
+          <p>
+            To build a thriving home-cooking ecosystem where every talented
+            cook has an opportunity to grow, every customer can discover food
+            that feels like home, and technology helps communities flourish.
+          </p>
+        </article>
+      </div>
+
+      <article className="mp-story-card">
+        <div className="eyebrow">THE INSPIRATION BEHIND MOM’S PERISA</div>
+        <h2>From the Streets to a Table of Hope</h2>
+
+        <p>
+          Imagine a young boy growing up on the streets, with little more
+          than his friends and an older companion who helps them survive.
+          Their days are uncertain, and food is never guaranteed. They depend
+          on the kindness of strangers, meals shared by people passing by,
+          and whatever small donations they can gather.
+        </p>
+
+        <p>
+          As the years pass, hardship takes its toll. The older companion
+          dies, and the children struggle with illness and the consequences
+          of a life without stability. Yet even in the middle of this
+          difficult life, the boy begins to imagine a different future.
+        </p>
+
+        <p>
+          He notices talented students learning to code in a room nearby.
+          Unable to join them, he watches quietly, writes down what he can,
+          and teaches himself little by little using a computer at a public
+          library. He does not have a classroom, expensive equipment, or
+          someone to guide every step. He has curiosity, determination, and
+          the belief that knowledge could change his life.
+        </p>
+
+        <p>
+          One day, he sees a delivery rider bringing food to a customer.
+          Nearby, an elderly woman sells homemade meals, hoping the right
+          customers will pass her way. The boy recognises the gap between
+          the two: people are ordering food through technology, while talented
+          home cooks may still depend on location, foot traffic, and chance
+          to find customers.
+        </p>
+
+        <p>
+          <strong>What if technology could connect them?</strong> What if
+          home cooks, housewives, single mothers, and talented chefs could
+          share their food with people who were already looking for a meal?
+          What if customers could discover those meals online instead of
+          relying only on what happened to be nearby?
+        </p>
+
+        <p>
+          That idea becomes the beginning of a platform. In the story, the
+          platform grows quickly, reaches a large community, and gives the
+          boy a path towards a better future. More importantly, it creates
+          opportunities for people whose talents might otherwise go unseen.
+        </p>
+
+        <p>
+          <strong>
+            This is the inspiration behind Mom’s Perisa: the belief that
+            technology should not only make life more convenient, but also
+            help people discover opportunities they might never have found
+            on their own.
+          </strong>
+        </p>
+
+        <p className="mp-story-ending">
+          Mom’s Perisa — bringing the taste of home closer to everyone,
+          while giving the hands behind every meal a chance to grow.
+        </p>
+
+        <small className="mp-story-note">
+          Inspired by a story from a movie that sparked the idea for Mom’s
+          Perisa. This is an adapted retelling of that inspiration, not a
+          claim that these events are the founder’s personal biography.
+        </small>
+      </article>
+
+      <div className="mp-roadmap-heading">
+        <div className="eyebrow">OUR ROADMAP</div>
+        <h2>Growing One Phase at a Time</h2>
+        <p>
+          We are building the foundation first, then expanding carefully
+          as our cooks, customers, and community grow.
+        </p>
+      </div>
+
+      <div className="phase-grid">
+        {phases.map((phase) => {
+          const isOpen = open === phase.id;
+
+          return (
+            <article
+              className={`phase-card ${
+                phase.id === "1" ? "phase-current" : ""
+              }`}
+              key={phase.id}
+            >
+              <button
+                type="button"
+                className="phase-toggle"
+                onClick={() => onToggle(isOpen ? null : phase.id)}
+                aria-expanded={isOpen}
+              >
+                <span className="phase-number">
+                  {phase.id === "3.1" ? "3.1" : phase.id}
+                </span>
+                <span className="phase-heading-copy">
+                  <strong>{phase.title}</strong>
+                  <small>{phase.status}</small>
+                </span>
+                <span className={`mp-phase-chevron ${isOpen ? "is-open" : ""}`}>
+                  ⌄
+                </span>
+              </button>
+
+              <p>{phase.summary}</p>
+
+              {isOpen && (
+                <div className="phase-details">
+                  <ul>
+                    {phase.details.map((detail, index) => (
+                      <li key={`${phase.id}-${index}`}>{detail}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
+
+
 
 function PublicReviews({ t, reviews }) {
   const list = (reviews || []).filter(r => r.rating && r.comment);

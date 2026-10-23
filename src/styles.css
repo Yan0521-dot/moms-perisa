@@ -707,3 +707,164 @@
   object-fit: cover;
   border-radius: inherit;
 }
+
+
+/* Mom's Perisa: mission, vision, story and roadmap */
+
+.mp-about-section {
+  scroll-margin-top: 100px;
+}
+
+.mp-purpose-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 26px 0;
+}
+
+.mp-purpose-card,
+.mp-story-card {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 20px;
+  padding: clamp(20px, 4vw, 32px);
+  background: var(--card, #ffffff);
+  min-width: 0;
+}
+
+.mp-purpose-card {
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.mp-purpose-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(30, 41, 59, 0.08);
+}
+
+.mp-purpose-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: #f0f7ed;
+  font-size: 24px;
+}
+
+.mp-purpose-card h3 {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+}
+
+.mp-purpose-card p,
+.mp-story-card p {
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.mp-purpose-card p {
+  margin: 0;
+}
+
+.mp-story-card {
+  margin: 24px 0 44px;
+}
+
+.mp-story-card h2 {
+  margin: 10px 0 20px;
+  line-height: 1.25;
+  font-size: clamp(1.65rem, 4vw, 2.35rem);
+}
+
+.mp-story-card p {
+  margin: 0 0 18px;
+}
+
+.mp-story-ending {
+  border-left: 4px solid #71945f;
+  padding: 14px 0 14px 18px;
+  margin-top: 26px !important;
+  font-size: 1.08rem;
+  font-weight: 650;
+}
+
+.mp-story-note {
+  display: block;
+  margin-top: 18px;
+  line-height: 1.65;
+  color: var(--muted, #6b7280);
+}
+
+.mp-roadmap-heading {
+  margin: 0 0 22px;
+}
+
+.mp-roadmap-heading h2 {
+  margin: 8px 0;
+}
+
+.mp-roadmap-heading p {
+  line-height: 1.7;
+}
+
+.mp-phase-chevron {
+  flex: 0 0 auto;
+  display: inline-block;
+  font-size: 25px;
+  line-height: 1;
+  transition: transform 180ms ease;
+}
+
+.mp-phase-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.phase-details ul {
+  margin: 12px 0 0;
+  padding-left: 22px;
+}
+
+.phase-details li {
+  margin: 0 0 10px;
+  line-height: 1.7;
+}
+
+.phase-toggle {
+  width: 100%;
+  text-align: left;
+}
+
+.phase-heading-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.phase-heading-copy strong {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .mp-purpose-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .mp-purpose-card,
+  .mp-story-card {
+    border-radius: 16px;
+    padding: 20px;
+  }
+
+  .mp-story-card {
+    margin-bottom: 34px;
+  }
+
+  .phase-toggle {
+    gap: 10px;
+  }
+
+  .phase-heading-copy small {
+    white-space: normal;
+  }
+}
