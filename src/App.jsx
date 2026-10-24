@@ -1,3 +1,5 @@
+import OnboardingTour from './OnboardingTour';
+import { getTutorialText } from './tutorialTranslations';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight, Bell, ChefHat, Check, ChevronDown, CircleAlert, ClipboardCheck, Clock3, Eye, EyeOff,
@@ -42,6 +44,9 @@ export default function App() {
   const [allOrders, setAllOrders] = useState([]);
   const [mobileNav, setMobileNav] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tutorialRun, setTutorialRun] = useState(false);
+  const [tutorialReplay, setTutorialReplay] = useState(0);
+  const [cookTutorialTab, setCookTutorialTab] = useState('application');
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [selectedDish, setSelectedDish] = useState(null);
@@ -63,7 +68,19 @@ export default function App() {
       : role === 'admin' ? t('adminCannotOrder')
         : role === 'customer' ? null
           : t('profileMissingHelp');
+useEffect(() => {
+  if (!user?.id || !profileReady) return;
+  if (role !== 'customer' && role !== 'cook') return;
 
+  const completionKey = `mp-tutorial-completed:${role}:${user.id}`;
+
+  if (localStorage.getItem(completionKey) === 'true') return;
+
+  // Open the correct dashboard before starting the tour.
+  setPage(role === 'cook' ? 'cook' : 'discover');
+  setCookTutorialTab('application');
+  setTutorialRun(true);
+}, [user?.id, role, profileReady]);
   useEffect(() => { localStorage.setItem('mp-language', lang); document.documentElement.lang = lang; }, [lang]);
   useEffect(() => { localStorage.setItem('mp-theme', theme); document.documentElement.dataset.theme = theme; }, [theme]);
   useEffect(() => {
@@ -852,6 +869,28 @@ if (active && !queryError) {
               )}
             </button>
           )}
+
+          {/* Replay onboarding tutorial */}
+          {user && (isCook || role === 'customer') && (
+            <button
+              type="button"
+              className="settings-menu-item"
+              onClick={() => {
+                setSettingsOpen(false);
+                setError('');
+                setPage(isCook ? 'cook' : 'discover');
+                setCookTutorialTab('application');
+                setTutorialRun(false);
+                setTutorialReplay(value => value + 1);
+
+                window.setTimeout(() => {
+                  setTutorialRun(true);
+                }, 100);
+              }}
+            >
+              <span>🎯 {getTutorialText(lang, role, 'replay')}</span>
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -901,13 +940,13 @@ if (active && !queryError) {
     <main className="main-content">
       {page === 'discover' && <>
         <section className="hero-panel"><div className="hero-text"><div className="eyebrow"><span className="eyebrow-dot" /> {t('introTitle')}</div><h1>{t('hero')}</h1><p>{t('heroText')}</p><div className="hero-badges"><span><ShieldCheck size={16} /> {t('approvedSeller')}</span><span><Clock3 size={16} /> {t('orderInstructions')}</span></div><button className="primary-button" onClick={() => document.getElementById('food-discovery')?.scrollIntoView({ behavior: 'smooth' })}>{t('startBrowsing')} <ArrowRight size={17} /></button></div><div className="hero-visual"><img src="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1100&q=85" alt="Home-cooked meal" /><div className="hero-sticker"><span>♡</span><strong>{t('heroStickerTitle')}</strong><small>{t('heroStickerSubtitle')}</small></div></div></section>
-        <section id="food-discovery" className="discovery-section"><div className="section-heading"><div><div className="eyebrow">{t('searchCooks')}</div><h2>{t('welcome')}</h2><p>{t('menuPublicNote')}</p></div><div className="listing-count"><Utensils size={17} /> {filteredDishes.length} {t('dishCount')}</div></div>
-          <div className="search-tools"><div className="search-field"><Search size={19} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('search')} /></div><div className="category-pills">{categories.map(c => <button key={c.key} className={category === c.key ? 'selected' : ''} onClick={() => setCategory(c.key)}>{c.label}</button>)}</div></div>
+        <section id="food-discovery" className="discovery-section" data-tour="customer-discovery"><div className="section-heading"><div><div className="eyebrow">{t('searchCooks')}</div><h2>{t('welcome')}</h2><p>{t('menuPublicNote')}</p></div><div className="listing-count"><Utensils size={17} /> {filteredDishes.length} {t('dishCount')}</div></div>
+          <div className="search-tools" data-tour="customer-search"><div className="search-field"><Search size={19} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('search')} /></div><div className="category-pills">{categories.map(c => <button key={c.key} className={category === c.key ? 'selected' : ''} onClick={() => setCategory(c.key)}>{c.label}</button>)}</div></div>
 
 {filteredDishes.length ? (
   <div className="food-grid">
     {filteredDishes.map(dish => (
-      <article className="food-card" key={dish.id}>
+      <article className="food-card" key={dish.id} data-tour="customer-food">
         <button
           type="button"
           className="food-image"
@@ -929,7 +968,7 @@ if (active && !queryError) {
         <div className="food-card-body">
           <button
             type="button"
-            className="cook-label kitchen-name-button"
+            className="cook-label kitchen-name-button" data-tour="customer-kitchen"
             onClick={() => setSelectedKitchen(dish)}
             title="View kitchen and menu"
           >
@@ -961,6 +1000,7 @@ if (active && !queryError) {
             <button
               type="button"
               className="small-primary"
+              data-tour="customer-order"
               onClick={() => openOrderSheet(dish)}
             >
               <Plus size={16} /> {t('order')}
@@ -1072,7 +1112,7 @@ if (active && !queryError) {
   </span>
 </label><button className="primary-button full-width" disabled={busy}>{busy ? t('saving') : authMode === 'signin' ? t('signIn') : t('createAccount')} <ArrowRight size={17} /></button></form>
 </div></section>}
-      {page === 'cook' && user && isCook && <CookDashboard t={t} user={user} profile={profile} application={myApplication} dishes={myDishes} orders={myOrders} hygieneSubmissions={hygieneSubmissions} reviews={reviews} notifications={notifications} editingDish={editingDish} setEditingDish={setEditingDish} busy={busy} onApplicationSubmit={submitApplication} onAddDish={addDish} onSubmitHygiene={submitHygieneUpdate} onUpdateOrder={updateOrder} onReadNotification={markNotificationRead} onError={setError} onSaveKitchenProfile={saveKitchenProfile} />}
+      {page === 'cook' && user && isCook && <CookDashboard t={t} user={user} profile={profile} tutorialTab={cookTutorialTab} application={myApplication} dishes={myDishes} orders={myOrders} hygieneSubmissions={hygieneSubmissions} reviews={reviews} notifications={notifications} editingDish={editingDish} setEditingDish={setEditingDish} busy={busy} onApplicationSubmit={submitApplication} onAddDish={addDish} onSubmitHygiene={submitHygieneUpdate} onUpdateOrder={updateOrder} onReadNotification={markNotificationRead} onError={setError} onSaveKitchenProfile={saveKitchenProfile} />}
       {page === 'orders' && user && role === 'customer' && <CustomerOrders t={t} orders={myOrders} busy={busy} onConfirmReceived={confirmReceived} onSubmitReview={submitReview} notifications={notifications} onReadNotification={markNotificationRead} />}
       {page === 'admin' && user && isAdmin && <AdminDashboard t={t} applications={applications} orders={allOrders} pendingDishes={pendingDishes} hygieneSubmissions={hygieneSubmissions} busy={busy} onReview={reviewApplication} onReviewDish={reviewDish} onReviewHygiene={reviewHygiene} onUpdateOrder={updateOrder} />}
       {page !== 'discover' && page !== 'auth' && page !== 'explore' && !user && <section className="empty-state"><UserRound size={32} /><h3>{t('signIn')}</h3><p>{t('authText')}</p><button className="primary-button" onClick={() => changePage('auth')}>{t('signIn')}</button></section>}
@@ -1104,6 +1144,30 @@ if (active && !queryError) {
   />
 )}
     {orderDish && user && <OrderModal dish={orderDish} t={t} busy={busy} success={orderSuccess} error={orderError} blockReason={orderBlockReason} onClose={() => { setOrderDish(null); setOrderSuccess(false); setOrderError(''); setError(''); }} onSubmit={submitOrder} />}
+    <OnboardingTour
+      role={role}
+      lang={lang}
+      run={tutorialRun}
+      tutorialReplay={tutorialReplay}
+      onCookTabChange={async (tab) => {
+        setCookTutorialTab(tab);
+        await new Promise(resolve => window.setTimeout(resolve, 150));
+      }}
+      onCustomerPageChange={async (nextPage) => {
+        changePage(nextPage);
+        await new Promise(resolve => window.setTimeout(resolve, 150));
+      }}
+      onComplete={(status) => {
+        setTutorialRun(false);
+        if (
+          user?.id &&
+          (role === 'customer' || role === 'cook') &&
+          (status === 'finished' || status === 'skipped')
+        ) {
+          localStorage.setItem(`mp-tutorial-completed:${role}:${user.id}`, 'true');
+        }
+      }}
+    />
     {notice && <div className="toast"><CircleCheck size={18} /> {notice}</div>}
   </div>;
 }
@@ -1505,24 +1569,30 @@ function describeOrderError(error, t) {
   return message || t('orderSubmitError');
 }
 
-function CookDashboard({ t, user, profile, application, dishes, orders, hygieneSubmissions, reviews, notifications, editingDish, setEditingDish, busy, onApplicationSubmit, onAddDish, onSubmitHygiene, onUpdateOrder, onReadNotification, onError, onSaveKitchenProfile  }) {
+function CookDashboard({ t, user, profile, application, dishes, orders, hygieneSubmissions, reviews, notifications, editingDish, setEditingDish, busy, onApplicationSubmit, onAddDish, onSubmitHygiene, onUpdateOrder, onReadNotification, onError, onSaveKitchenProfile, tutorialTab }) {
   const [tab, setTab] = useState('application');
+
+  useEffect(() => {
+    if (tutorialTab) setTab(tutorialTab);
+  }, [tutorialTab]);
+
   const appStatus = application?.status || 'not_submitted';
   const statusText = appStatus === 'approved' ? t('approved') : appStatus === 'pending' ? t('underReview') : appStatus === 'changes_requested' ? t('needsChanges') : t('notSubmitted');
   const appApproved = appStatus === 'approved';
   const newOrderCount = (orders || []).filter(o => o.status === 'pending').length;
-  return <section className="dashboard-page"><div className="page-heading"><div><div className="eyebrow">{t('myDashboard')}</div><h1>{t('welcome')}</h1><p>{profile?.display_name || user.user_metadata?.display_name || user.email}</p></div><span className={`status-badge ${appStatus}`}>{statusText}</span>{appApproved && <HygieneBadge t={t} status={getHygieneStatus(profile || {})}/>}</div>
+  return <section className="dashboard-page" data-tour="cook-dashboard"><div className="page-heading"><div><div className="eyebrow">{t('myDashboard')}</div><h1>{t('welcome')}</h1><p>{profile?.display_name || user.user_metadata?.display_name || user.email}</p></div><span className={`status-badge ${appStatus}`}>{statusText}</span>{appApproved && <HygieneBadge t={t} status={getHygieneStatus(profile || {})}/>}</div>
     {!appApproved && <div className="notice-card"><ShieldCheck size={21} /><div><strong>{t('foodSafety')}</strong><p>{t('menuNeedsApproval')}</p></div></div>}
     {appApproved && <div className="notice-card success"><CircleCheck size={21} /><div><strong>{t('cookApprovedNotice')}</strong></div></div>}
     {notifications?.length > 0 && <div className="content-card"><div className="card-heading"><h2>{t('notifications')}</h2><span className="count-pill">{notifications.filter(n => !n.read_at).length}</span></div><div className="notification-list">{notifications.slice(0,5).map(n => <button key={n.id} className={`notification-row ${n.read_at ? 'read' : ''}`} onClick={() => !n.read_at && onReadNotification(n)}><span className="notification-dot"/><span><strong>{n.title}</strong><small>{n.body}</small><small>{new Date(n.created_at).toLocaleString()}</small></span></button>)}</div></div>}
     <div className="cook-finance-grid"><div className="stat-card"><span>{t('totalOrders')}</span><strong>{orders.length}</strong><small>{t('allTime')}</small></div><div className="stat-card"><span>{t('estimatedSales')}</span><strong>{money(orders.filter(o => ['handed_over','completed'].includes(o.status) && o.customer_received_confirmation !== false).reduce((sum,o) => sum + Number(o.total_amount || 0),0))}</strong><small>{t('externalPaymentCaveat')}</small></div><div className="stat-card"><span>{t('averageRating')}</span><strong>{reviews?.length ? (reviews.reduce((sum,r) => sum + Number(r.rating || 0),0)/reviews.length).toFixed(1) : '—'}</strong><small>{reviews?.length || 0} {t('reviews')}</small></div></div>
     {dishes.length > 0 && <div className="content-card dish-demand-card"><div className="card-heading"><div><h2>{t('dishDemand')}</h2><p>{t('dishDemandHelp')}</p></div></div><div className="own-dish-list">{dishes.map(d => { const sold = orders.flatMap(o => o.order_items || []).filter(i => i.dish_id === d.id).reduce((sum,i) => sum + Number(i.quantity || 0),0); return <div className="own-dish" key={d.id}>{d.image_url ? <img src={d.image_url} alt=""/> : <div className="own-dish-placeholder"><Utensils size={18}/></div>}<div><strong>{d.name}</strong><small>{t('portionsSold')}: {sold} · {t('estimatedSales')}: {money(orders.filter(o => ['handed_over','completed'].includes(o.status) && o.customer_received_confirmation !== false).reduce((sum,o) => sum + (o.order_items || []).filter(i => i.dish_id === d.id).reduce((sub,i) => sub + Number(i.unit_price || 0) * Number(i.quantity || 0),0),0))}</small></div></div>; })}</div></div>}
-    <div className="dashboard-tabs"><button className={tab === 'application' ? 'active' : ''} onClick={() => setTab('application')}><FileCheck2 size={16} /> {t('cookApplication')}</button><button
+    <div className="dashboard-tabs"><button data-tour="cook-application" className={tab === 'application' ? 'active' : ''} onClick={() => setTab('application')}><FileCheck2 size={16} /> {t('cookApplication')}</button><button
+  data-tour="cook-profile"
   className={tab === 'profile' ? 'active' : ''}
   onClick={() => setTab('profile')}
 >
   <ChefHat size={16} /> Kitchen Profile
-</button><button className={tab === 'menu' ? 'active' : ''} onClick={() => setTab('menu')}><Utensils size={16} /> {t('menuManagement')}</button><button className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}><ClipboardList size={16} /> {t('ordersForCook')}{newOrderCount > 0 && <span className="tab-count">{newOrderCount}</span>}</button></div>
+</button><button data-tour="cook-menu" className={tab === 'menu' ? 'active' : ''} onClick={() => setTab('menu')}><Utensils size={16} /> {t('menuManagement')}</button><button data-tour="cook-orders" className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}><ClipboardList size={16} /> {t('ordersForCook')}{newOrderCount > 0 && <span className="tab-count">{newOrderCount}</span>}</button></div>
 
 {tab === 'profile' && (
   <div className="content-card kitchen-profile-form">
@@ -1642,7 +1712,7 @@ function CustomerOrders({ t, orders, busy, onConfirmReceived, onSubmitReview, no
     };
   }, [printingOrderId]);
 
-  return <section className="dashboard-page">
+  return <section className="dashboard-page" data-tour="customer-history">
     <div className="page-heading">
       <div>
         <div className="eyebrow">{t('myDashboard')}</div>
@@ -1731,7 +1801,7 @@ function CustomerOrders({ t, orders, busy, onConfirmReceived, onSubmitReview, no
               </div>
             </div>}
 
-            {o.customer_received_confirmation === true && !o.reviews?.length && <div className="review-form">
+            {o.customer_received_confirmation === true && !o.reviews?.length && <div className="review-form" data-tour="customer-review">
               <strong>{t('leaveReview')}</strong>
               <label>{t('rating')}
                 <select value={ratings[o.id] || '5'} onChange={e => setRatings(old => ({ ...old, [o.id]: Number(e.target.value) }))}>
