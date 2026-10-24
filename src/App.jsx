@@ -22,6 +22,8 @@ export default function App() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [page, setPage] = useState('discover');
+  const [emailConfirmed, setEmailConfirmed] = useState(
+  () => window.location.pathname === '/email-confirmed');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [dishes, setDishes] = useState([]);
@@ -81,6 +83,19 @@ useEffect(() => {
   setCookTutorialTab('application');
   setTutorialRun(true);
 }, [user?.id, role, profileReady]);
+useEffect(() => {
+  const handleLocationChange = () => {
+    setEmailConfirmed(
+      window.location.pathname === '/email-confirmed'
+    );
+  };
+
+  window.addEventListener('popstate', handleLocationChange);
+
+  return () => {
+    window.removeEventListener('popstate', handleLocationChange);
+  };
+}, []);
   useEffect(() => { localStorage.setItem('mp-language', lang); document.documentElement.lang = lang; }, [lang]);
   useEffect(() => { localStorage.setItem('mp-theme', theme); document.documentElement.dataset.theme = theme; }, [theme]);
   useEffect(() => {
@@ -386,7 +401,17 @@ if (active && !queryError) {
       if (!hasSupabase) throw new Error(t('setupText'));
       if (authMode === 'signup') {
         if (!['customer', 'cook'].includes(selectedRole)) throw new Error(t('roleNotAvailable'));
-        const { data, error: authError } = await supabase.auth.signUp({ email, password, options: { data: { display_name: displayName, requested_role: selectedRole } } });
+        const { data, error: authError } = await supabase.auth.signUp({
+  email,
+  password,
+  options: {
+    emailRedirectTo: `${window.location.origin}/email-confirmed`,
+    data: {
+      display_name: displayName,
+      requested_role: selectedRole
+    }
+  }
+});
         if (authError) throw authError;
         if (data.session) setSession(data.session);
         notify(t('signUpSuccess'));
@@ -724,7 +749,46 @@ if (active && !queryError) {
   function changePage(next) { setPage(next); setMobileNav(false); setError(''); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   const categories = [{ key: 'all', label: t('allCategories') }, { key: 'rice', label: t('rice') }, { key: 'mains', label: t('mains') }, { key: 'desserts', label: t('desserts') }, { key: 'vegetarian', label: t('vegetarian') }];
 
-  return <div className="app-shell" data-theme={theme}>
+if (emailConfirmed) {
+  return (
+    <div className="app-shell" data-theme={theme}>
+      <main className="auth-layout">
+        <section className="auth-card" style={{ textAlign: 'center' }}>
+          <div className="brand-symbol large brand-video">
+            <video autoPlay loop muted playsInline>
+              <source src="/moms-perisa-logo.mp4" type="video/mp4" />
+            </video>
+          </div>
+
+          <div style={{ fontSize: '56px', margin: '24px 0' }}>✅</div>
+
+          <p className="eyebrow">MOM’S PERISA</p>
+          <h1>Email confirmed!</h1>
+
+          <p>
+            Your email address has been confirmed successfully.
+            You can now return to Mom’s Perisa and sign in.
+          </p>
+
+          <button
+            className="primary-button full-width"
+            onClick={() => {
+              window.history.pushState({}, '', '/');
+              setEmailConfirmed(false);
+              setPage('auth');
+              setAuthMode('signin');
+              setError('');
+            }}
+          >
+            Continue to sign in <ArrowRight size={17} />
+          </button>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+return <div className="app-shell" data-theme={theme}>
     <div className="top-announcement"><SparklesIcon /> {t('tagline')} <span>·</span> {t('introTitle')}</div>
 
 <header className="site-header">
