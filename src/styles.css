@@ -895,3 +895,25 @@
 .mp-purpose-icon {
   background: var(--surface-2);
 }
+
+/* Mom's Perisa onboarding tutorial */
+.mp-tour-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.mp-tour-content p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.mp-tour-animation {
+  display: block;
+  width: 180px;
+  height: 180px;
+  max-width: 100%;
+  flex-shrink: 0;
+}
