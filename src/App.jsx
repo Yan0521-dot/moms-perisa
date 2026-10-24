@@ -1200,27 +1200,6 @@ const phases = [
 
   return (
     <section className="phase-section mp-about-section" id="explore-more">
-      <div className="section-heading">
-        <div>
-          <div className="eyebrow">{t('purposeEyebrow')}</div>
-<h2>{t('purposeTitle')}</h2>
-<p>{t('purposeIntro')}</p>
-        </div>
-      </div>
-
-      <div className="mp-purpose-grid">
-        <article className="mp-purpose-card">
-          <span className="mp-purpose-icon">🎯</span>
-<h3>{t('missionHeading')}</h3>
-<p>{t('missionFull')}</p>
-        </article>
-
-        <article className="mp-purpose-card">
-          <span className="mp-purpose-icon">🌱</span>
-          <h3>{t('visionHeading')}</h3>
-<p>{t('visionFull')}</p>
-        </article>
-      </div>
 
       <article className="mp-story-card">
 <div className="eyebrow">{t('inspirationEyebrow')}</div>
