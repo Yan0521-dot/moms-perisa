@@ -1049,6 +1049,9 @@ return <div className="app-shell" data-theme={theme}>
               <ChefHat size={14} />
             )}
             <span>{dish.cook_name || t('cookName')}</span>
+            {dish.halal_status === 'halal' && (
+  <small className="halal-status-label">Halal</small>
+)}
             <ArrowRight size={13} />
           </button>
 
