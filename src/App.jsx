@@ -509,6 +509,7 @@ if (active && !queryError) {
     const kitchenName = String(form.get('kitchenName') || '').trim();
     const kitchenLocation = String(form.get('kitchenLocation') || '').trim();
     const kitchenDescription = String(form.get('kitchenDescription') || '').trim();
+    const halalStatus = String(form.get('halalStatus') || '');
     const kitchenImage = form.get('kitchenImage');
 
     if (!kitchenName) {
@@ -529,6 +530,7 @@ if (active && !queryError) {
         kitchen_name: kitchenName,
         kitchen_location: kitchenLocation || null,
         kitchen_description: kitchenDescription || null,
+        halal_status: halalStatus,
         updated_at: new Date().toISOString()
       };
 
@@ -1701,6 +1703,22 @@ function CookDashboard({ t, user, profile, application, dishes, orders, hygieneS
           placeholder="e.g. Ampang, Kuala Lumpur"
         />
       </label>
+
+      <label>
+        Food Halal Status *
+        <select
+          name="halalStatus"
+          required
+          defaultValue={profile?.halal_status || 'not_halal'}
+        >
+          <option value="halal">Halal</option>
+          <option value="not_halal">Not Halal</option>
+        </select>
+        <small className="form-help">
+          Select the status that applies to the food you prepare.
+        </small>
+      </label>
+
 
       <label>
         About your kitchen
