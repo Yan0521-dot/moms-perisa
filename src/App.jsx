@@ -364,7 +364,7 @@ useEffect(() => {
     let active = true;
     async function loadPublicDishes() {
       if (!hasSupabase) return;
-      const { data, error: queryError } = await supabase.from('dishes').select('*, profiles!dishes_cook_id_fkey(display_name,kitchen_name,kitchen_image_url,kitchen_location,kitchen_description,hygiene_review_status,hygiene_last_updated_at,hygiene_pending_since)').eq('status', 'approved').eq('available', true).gt('portions_available', 0).order('created_at', { ascending: false });
+      const { data, error: queryError } = await supabase.from('dishes').select('*, profiles!dishes_cook_id_fkey(display_name,kitchen_name,kitchen_image_url,kitchen_location,kitchen_description,halal_status,hygiene_review_status,hygiene_last_updated_at,hygiene_pending_since)').eq('status', 'approved').eq('available', true).gt('portions_available', 0).order('created_at', { ascending: false });
       if (queryError) {
   console.error('[Mom’s Perisa] Failed to load public dishes:', queryError);
 }
@@ -376,6 +376,7 @@ if (active && !queryError) {
     kitchen_image_url: d.profiles?.kitchen_image_url || null,
     kitchen_location: d.profiles?.kitchen_location || null,
     kitchen_description: d.profiles?.kitchen_description || null,
+    halal_status: d.profiles?.halal_status || null,
     hygiene_review_status: d.profiles?.hygiene_review_status,
     hygiene_last_updated_at: d.profiles?.hygiene_last_updated_at,
     hygiene_pending_since: d.profiles?.hygiene_pending_since
@@ -1476,6 +1477,10 @@ function KitchenDetails({ dish, dishes, reviews, t, onClose, onSelectDish, onOrd
           <div className="modal-content">
             <div className="eyebrow">HOME KITCHEN</div>
             <h2>{dish.cook_name || t('cookName')}</h2>
+
+ {dish.halal_status === 'halal' && (
+  <small className="halal-status-label">Halal</small>
+)}
 
             {dish.kitchen_location && (
               <p className="kitchen-location">
