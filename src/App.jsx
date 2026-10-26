@@ -509,8 +509,43 @@ if (active && !queryError) {
     const form = new FormData(formElement);
     const kitchenName = String(form.get('kitchenName') || '').trim();
     const kitchenLocation = String(form.get('kitchenLocation') || '').trim();
-    const kitchenDescription = String(form.get('kitchenDescription') || '').trim();
-    const halalStatus = String(form.get('halalStatus') || '');
+const kitchenLatitudeRaw = String(form.get('kitchenLatitude') || '').trim();
+const kitchenLongitudeRaw = String(form.get('kitchenLongitude') || '').trim();
+const kitchenDescription = String(form.get('kitchenDescription') || '').trim();
+const halalStatus = String(form.get('halalStatus') || '');
+
+const kitchenLatitude = kitchenLatitudeRaw === ''
+  ? null
+  : Number(kitchenLatitudeRaw);
+
+const kitchenLongitude = kitchenLongitudeRaw === ''
+  ? null
+  : Number(kitchenLongitudeRaw);
+
+if ((kitchenLatitudeRaw === '') !== (kitchenLongitudeRaw === '')) {
+  setError('Please enter both kitchen coordinates, or leave both blank.');
+  return;
+}
+
+if (
+  kitchenLatitude !== null &&
+  (!Number.isFinite(kitchenLatitude) ||
+    kitchenLatitude < -90 ||
+    kitchenLatitude > 90)
+) {
+  setError('Latitude must be between -90 and 90.');
+  return;
+}
+
+if (
+  kitchenLongitude !== null &&
+  (!Number.isFinite(kitchenLongitude) ||
+    kitchenLongitude < -180 ||
+    kitchenLongitude > 180)
+) {
+  setError('Longitude must be between -180 and 180.');
+  return;
+}
     const kitchenImage = form.get('kitchenImage');
 
     if (!kitchenName) {
@@ -527,13 +562,15 @@ if (active && !queryError) {
     setError('');
 
     try {
-      const payload = {
-        kitchen_name: kitchenName,
-        kitchen_location: kitchenLocation || null,
-        kitchen_description: kitchenDescription || null,
-        halal_status: halalStatus,
-        updated_at: new Date().toISOString()
-      };
+         const payload = {
+  kitchen_name: kitchenName,
+  kitchen_location: kitchenLocation || null,
+  kitchen_latitude: kitchenLatitude,
+  kitchen_longitude: kitchenLongitude,
+  kitchen_description: kitchenDescription || null,
+  halal_status: halalStatus,
+  updated_at: new Date().toISOString()
+};         
 
       if (kitchenImage?.size) {
         const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -1702,15 +1739,48 @@ function CookDashboard({ t, user, profile, application, dishes, orders, hygieneS
         />
       </label>
 
-      <label>
-        Location
-        <input
-          name="kitchenLocation"
-          maxLength="200"
-          defaultValue={profile?.kitchen_location || ''}
-          placeholder="e.g. Ampang, Kuala Lumpur"
-        />
-      </label>
+
+<label>
+  Location
+  <input
+    name="kitchenLocation"
+    maxLength="200"
+    defaultValue={profile?.kitchen_location || ''}
+    placeholder="e.g. Ampang, Kuala Lumpur"
+  />
+</label>
+
+<label>
+  Kitchen latitude
+  <input
+    name="kitchenLatitude"
+    type="number"
+    min="-90"
+    max="90"
+    step="any"
+    defaultValue={profile?.kitchen_latitude ?? ''}
+    placeholder="e.g. 3.1589"
+  />
+</label>
+
+<label>
+  Kitchen longitude
+  <input
+    name="kitchenLongitude"
+    type="number"
+    min="-180"
+    max="180"
+    step="any"
+    defaultValue={profile?.kitchen_longitude ?? ''}
+    placeholder="e.g. 101.7009"
+  />
+</label>
+
+<small className="form-help">
+  Coordinates help customers find nearby kitchens. Leave both blank if you
+  haven't set your kitchen location coordinates yet.
+</small>
+
 
       <label>
         Food Halal Status *
