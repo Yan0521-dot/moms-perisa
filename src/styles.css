@@ -917,3 +917,85 @@
   max-width: 100%;
   flex-shrink: 0;
 }
+
+
+/* Mom's Perisa: optional nearby-kitchen controls */
+.nearby-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 22px;
+  padding: 14px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+}
+
+.nearby-location-button,
+.nearby-filter-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 13px;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  color: var(--text, #1f2937);
+  font: inherit;
+  cursor: pointer;
+}
+
+.nearby-location-button {
+  border-color: var(--primary, #237a57);
+  color: var(--primary, #237a57);
+  font-weight: 600;
+}
+
+.nearby-filter-button.selected {
+  background: var(--primary, #237a57);
+  border-color: var(--primary, #237a57);
+  color: #fff;
+}
+
+.nearby-location-button:disabled,
+.nearby-filter-button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.nearby-radius {
+  color: var(--muted, #6b7280);
+  font-size: .85rem;
+}
+
+.nearby-status {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--muted, #6b7280);
+  font-size: .88rem;
+  line-height: 1.5;
+}
+
+.kitchen-distance {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 9px;
+  color: var(--primary, #237a57);
+  font-size: .82rem;
+  font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  .nearby-tools {
+    align-items: stretch;
+  }
+
+  .nearby-location-button,
+  .nearby-filter-button {
+    flex: 1 1 100%;
+  }
+}

@@ -562,6 +562,59 @@ Object.assign(extraTranslations.ms, exploreTranslations.ms);
 Object.assign(extraTranslations.zh, exploreTranslations.zh);
 Object.assign(extraTranslations.ta, exploreTranslations.ta);
 
+Object.assign(extraTranslations.en, {
+  nearbyUseLocation: 'Use my location',
+  nearbyUpdateLocation: 'Update my location',
+  nearbyOnly: 'Show kitchens within 10 km',
+  nearbyRadius: 'Within 10 km · straight-line distance',
+  nearbyLocationHelp: 'Share your location to find nearby home kitchens. Your location stays in this browser and is not saved to your account.',
+  nearbyLocationReady: 'Location ready. Nearby filtering is enabled; kitchens without coordinates cannot appear in nearby results.',
+  nearbyLocationDenied: 'Location permission was denied. You can still browse all available dishes.',
+  nearbyLocationUnsupported: 'Location access is not supported by this browser. You can still browse all available dishes.',
+  nearbyLocationError: 'Could not get your location. Please try again or continue browsing normally.',
+  nearbyRequesting: 'Getting your location…',
+  kmAway: '{distance} km away'
+});
+Object.assign(extraTranslations.ms, {
+  nearbyUseLocation: 'Gunakan lokasi saya',
+  nearbyUpdateLocation: 'Kemas kini lokasi saya',
+  nearbyOnly: 'Tunjukkan dapur dalam lingkungan 10 km',
+  nearbyRadius: 'Dalam 10 km · jarak garis lurus',
+  nearbyLocationHelp: 'Kongsi lokasi untuk mencari dapur berdekatan. Lokasi anda kekal dalam pelayar ini dan tidak disimpan ke akaun.',
+  nearbyLocationReady: 'Lokasi tersedia. Penapisan berdekatan diaktifkan; dapur tanpa koordinat tidak akan muncul dalam hasil berdekatan.',
+  nearbyLocationDenied: 'Kebenaran lokasi ditolak. Anda masih boleh melihat semua hidangan yang tersedia.',
+  nearbyLocationUnsupported: 'Pelayar ini tidak menyokong akses lokasi. Anda masih boleh melihat semua hidangan.',
+  nearbyLocationError: 'Lokasi tidak dapat diperoleh. Cuba lagi atau teruskan melayari seperti biasa.',
+  nearbyRequesting: 'Mendapatkan lokasi…',
+  kmAway: '{distance} km dari anda'
+});
+Object.assign(extraTranslations.zh, {
+  nearbyUseLocation: '使用我的位置',
+  nearbyUpdateLocation: '更新我的位置',
+  nearbyOnly: '仅显示 10 公里内的厨房',
+  nearbyRadius: '10 公里内 · 直线距离',
+  nearbyLocationHelp: '分享位置以查找附近的家庭厨房。您的位置仅保留在此浏览器中，不会保存到账户。',
+  nearbyLocationReady: '位置已获取，附近筛选已启用；没有坐标的厨房不会显示在附近结果中。',
+  nearbyLocationDenied: '您拒绝了位置权限，仍然可以浏览所有可用菜品。',
+  nearbyLocationUnsupported: '此浏览器不支持位置访问，您仍然可以浏览所有可用菜品。',
+  nearbyLocationError: '无法获取位置。请重试，或继续浏览所有菜品。',
+  nearbyRequesting: '正在获取位置…',
+  kmAway: '距离您 {distance} 公里'
+});
+Object.assign(extraTranslations.ta, {
+  nearbyUseLocation: 'எனது இருப்பிடத்தைப் பயன்படுத்து',
+  nearbyUpdateLocation: 'எனது இருப்பிடத்தைப் புதுப்பி',
+  nearbyOnly: '10 கி.மீ.க்குள் உள்ள சமையலறைகளைக் காட்டு',
+  nearbyRadius: '10 கி.மீ.க்குள் · நேர்கோட்டு தூரம்',
+  nearbyLocationHelp: 'அருகிலுள்ள வீட்டு சமையலர்களைக் கண்டறிய உங்கள் இருப்பிடத்தைப் பகிரவும். அது இந்த உலாவியில் மட்டுமே இருக்கும்; உங்கள் கணக்கில் சேமிக்கப்படாது.',
+  nearbyLocationReady: 'இருப்பிடம் கிடைத்தது. அருகிலுள்ள வடிகட்டி இயக்கப்பட்டுள்ளது; இருப்பிடக் குறியீடுகள் இல்லாத சமையலறைகள் அருகிலுள்ள முடிவுகளில் காட்டப்படாது.',
+  nearbyLocationDenied: 'இருப்பிட அனுமதி மறுக்கப்பட்டது. கிடைக்கும் எல்லா உணவுகளையும் தொடர்ந்து பார்க்கலாம்.',
+  nearbyLocationUnsupported: 'இந்த உலாவியில் இருப்பிட அணுகல் ஆதரிக்கப்படவில்லை. எல்லா உணவுகளையும் தொடர்ந்து பார்க்கலாம்.',
+  nearbyLocationError: 'உங்கள் இருப்பிடத்தைப் பெற முடியவில்லை. மீண்டும் முயற்சிக்கவும் அல்லது வழக்கம்போல் உலாவவும்.',
+  nearbyRequesting: 'இருப்பிடத்தைப் பெறுகிறது…',
+  kmAway: '{distance} கி.மீ. தொலைவில்'
+});
+
 export const dictionaries = { en, ms, zh, ta };
 export function translate(lang, key) {
   return extraTranslations[lang]?.[key] ?? dictionaries[lang]?.[key] ?? extraTranslations.en[key] ?? en[key] ?? key;

@@ -3,7 +3,7 @@ import { getTutorialText } from './tutorialTranslations';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight, Bell, ChefHat, Check, ChevronDown, CircleAlert, ClipboardCheck, Clock3, Eye, EyeOff,
-  FileCheck2, Globe2, Heart, Languages, Leaf, LogIn, LogOut, Menu as MenuIcon,
+  FileCheck2, Globe2, Heart, MapPin, Languages, Leaf, LogIn, LogOut, Menu as MenuIcon,
   Moon, PackageCheck, Plus, Search, ShieldCheck, ShoppingBag, Sun, Utensils,
   X, CircleCheck, UserRound, Upload, ClipboardList, RefreshCw, Trash2
 } from 'lucide-react';
@@ -11,6 +11,37 @@ import { hasSupabase, supabase } from './supabase';
 import { languages, translate } from './i18n';
 
 const money = n => `RM ${Number(n || 0).toFixed(2)}`;
+
+// Straight-line distance in kilometres. Missing coordinates are not treated as zero.
+function getDistanceKm(origin, latitude, longitude) {
+  if (
+    !origin ||
+    latitude === null || latitude === undefined || latitude === '' ||
+    longitude === null || longitude === undefined || longitude === ''
+  ) return null;
+
+  const lat = Number(latitude);
+  const lon = Number(longitude);
+  const originLat = Number(origin.latitude);
+  const originLon = Number(origin.longitude);
+
+  if (
+    !Number.isFinite(lat) || !Number.isFinite(lon) ||
+    !Number.isFinite(originLat) || !Number.isFinite(originLon) ||
+    Math.abs(lat) > 90 || Math.abs(originLat) > 90 ||
+    Math.abs(lon) > 180 || Math.abs(originLon) > 180
+  ) return null;
+
+  const radians = degrees => degrees * Math.PI / 180;
+  const dLat = radians(lat - originLat);
+  const dLon = radians(lon - originLon);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(radians(originLat)) * Math.cos(radians(lat)) *
+    Math.sin(dLon / 2) ** 2;
+
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
+}
 
 export default function App() {
   const [lang, setLang] = useState(() => localStorage.getItem('mp-language') || 'en');
@@ -26,6 +57,10 @@ export default function App() {
   () => window.location.pathname === '/email-confirmed');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
+  const [customerLocation, setCustomerLocation] = useState(null);
+  const [locationStatus, setLocationStatus] = useState('idle');
+  const [nearbyOnly, setNearbyOnly] = useState(false);
+  const [locationBusy, setLocationBusy] = useState(false);
   const [dishes, setDishes] = useState([]);
   const [applications, setApplications] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -364,7 +399,7 @@ useEffect(() => {
     let active = true;
     async function loadPublicDishes() {
       if (!hasSupabase) return;
-      const { data, error: queryError } = await supabase.from('dishes').select('*, profiles!dishes_cook_id_fkey(display_name,kitchen_name,kitchen_image_url,kitchen_location,kitchen_description,halal_status,hygiene_review_status,hygiene_last_updated_at,hygiene_pending_since)').eq('status', 'approved').eq('available', true).gt('portions_available', 0).order('created_at', { ascending: false });
+      const { data, error: queryError } = await supabase.from('dishes').select('*, profiles!dishes_cook_id_fkey(display_name,kitchen_name,kitchen_image_url,kitchen_location,kitchen_latitude,kitchen_longitude,kitchen_description,halal_status,hygiene_review_status,hygiene_last_updated_at,hygiene_pending_since)').eq('status', 'approved').eq('available', true).gt('portions_available', 0).order('created_at', { ascending: false });
       if (queryError) {
   console.error('[Mom’s Perisa] Failed to load public dishes:', queryError);
 }
@@ -375,6 +410,8 @@ if (active && !queryError) {
     cook_name: d.profiles?.kitchen_name || d.profiles?.display_name || 'Home cook',
     kitchen_image_url: d.profiles?.kitchen_image_url || null,
     kitchen_location: d.profiles?.kitchen_location || null,
+    kitchen_latitude: d.profiles?.kitchen_latitude ?? null,
+    kitchen_longitude: d.profiles?.kitchen_longitude ?? null,
     kitchen_description: d.profiles?.kitchen_description || null,
     halal_status: d.profiles?.halal_status || null,
     hygiene_review_status: d.profiles?.hygiene_review_status,
@@ -784,7 +821,62 @@ if (
     catch (e) { setError(e.message || t('authError')); }
   }
 
-  const filteredDishes = useMemo(() => dishes.filter(d => d.status === 'approved' && d.available !== false && Number(d.portions_available) > 0 && (category === 'all' || d.category === category) && `${d.name} ${d.cook_name || ''} ${d.description || ''}`.toLowerCase().includes(query.toLowerCase())), [dishes, category, query]);
+  const filteredDishes = useMemo(() => {
+    const matching = dishes.filter(d =>
+      d.status === 'approved' &&
+      d.available !== false &&
+      Number(d.portions_available) > 0 &&
+      (category === 'all' || d.category === category) &&
+      `${d.name} ${d.cook_name || ''} ${d.description || ''}`
+        .toLowerCase()
+        .includes(query.toLowerCase())
+    );
+
+    if (!nearbyOnly || !customerLocation) return matching;
+
+    return matching.filter(d => {
+      const distance = getDistanceKm(
+        customerLocation,
+        d.kitchen_latitude,
+        d.kitchen_longitude
+      );
+      return distance !== null && distance <= 10;
+    });
+  }, [dishes, category, query, nearbyOnly, customerLocation]);
+
+  function requestCustomerLocation() {
+    if (!navigator.geolocation) {
+      setLocationStatus('unsupported');
+      return;
+    }
+
+    setLocationBusy(true);
+    setLocationStatus('requesting');
+
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        setCustomerLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+        setLocationStatus('ready');
+        setNearbyOnly(true);
+        setLocationBusy(false);
+      },
+      error => {
+        setLocationBusy(false);
+        setLocationStatus(
+          error.code === 1 ? 'denied' : 'error'
+        );
+        setNearbyOnly(false);
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 60000
+      }
+    );
+  }
 
   function changePage(next) { setPage(next); setMobileNav(false); setError(''); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   const categories = [{ key: 'all', label: t('allCategories') }, { key: 'rice', label: t('rice') }, { key: 'mains', label: t('mains') }, { key: 'desserts', label: t('desserts') }, { key: 'vegetarian', label: t('vegetarian') }];
@@ -1047,6 +1139,48 @@ return <div className="app-shell" data-theme={theme}>
         <section id="food-discovery" className="discovery-section" data-tour="customer-discovery"><div className="section-heading"><div><div className="eyebrow">{t('searchCooks')}</div><h2>{t('welcome')}</h2><p>{t('menuPublicNote')}</p></div><div className="listing-count"><Utensils size={17} /> {filteredDishes.length} {t('dishCount')}</div></div>
           <div className="search-tools" data-tour="customer-search"><div className="search-field"><Search size={19} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('search')} /></div><div className="category-pills">{categories.map(c => <button key={c.key} className={category === c.key ? 'selected' : ''} onClick={() => setCategory(c.key)}>{c.label}</button>)}</div></div>
 
+          <div className="nearby-tools">
+            <button
+              type="button"
+              className="nearby-location-button"
+              onClick={requestCustomerLocation}
+              disabled={locationBusy}
+            >
+              <MapPin size={17} />
+              {locationBusy
+                ? t('nearbyRequesting')
+                : customerLocation
+                  ? t('nearbyUpdateLocation')
+                  : t('nearbyUseLocation')}
+            </button>
+
+            <button
+              type="button"
+              className={`nearby-filter-button${nearbyOnly ? ' selected' : ''}`}
+              onClick={() => setNearbyOnly(value => !value)}
+              disabled={!customerLocation}
+              aria-pressed={nearbyOnly}
+            >
+              {t('nearbyOnly')}
+            </button>
+
+            <span className="nearby-radius">{t('nearbyRadius')}</span>
+
+            <p className="nearby-status" role="status">
+              {locationStatus === 'ready'
+                ? t('nearbyLocationReady')
+                : locationStatus === 'denied'
+                  ? t('nearbyLocationDenied')
+                  : locationStatus === 'unsupported'
+                    ? t('nearbyLocationUnsupported')
+                    : locationStatus === 'error'
+                      ? t('nearbyLocationError')
+                      : locationStatus === 'requesting'
+                        ? t('nearbyRequesting')
+                        : t('nearbyLocationHelp')}
+            </p>
+          </div>
+
 {filteredDishes.length ? (
   <div className="food-grid">
     {filteredDishes.map(dish => (
@@ -1091,6 +1225,20 @@ return <div className="app-shell" data-theme={theme}>
 )}
             <ArrowRight size={13} />
           </button>
+
+          {customerLocation && (() => {
+            const distance = getDistanceKm(
+              customerLocation,
+              dish.kitchen_latitude,
+              dish.kitchen_longitude
+            );
+            return distance === null ? null : (
+              <small className="kitchen-distance">
+                <MapPin size={13} />
+                {t('kmAway').replace('{distance}', distance.toFixed(1))}
+              </small>
+            );
+          })()}
 
           <button
             type="button"
